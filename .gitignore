@@ -7,6 +7,7 @@ packages/frontend/.DS_Store
 packages/frontend/dist
 packages/frontend/dist-ssr
 packages/frontend/*.local
+packages/frontend/.env
 
 # Backend specific ignores
 packages/backend/node_modules
@@ -14,3 +15,4 @@ packages/backend/.DS_Store
 packages/backend/dist
 packages/backend/dist-ssr
 packages/backend/*.local
+packages/backend/.env
