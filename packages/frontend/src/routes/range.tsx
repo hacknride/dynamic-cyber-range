@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import React from "react";
+import React, { useState } from "react";
 import styles from './range.module.css';
 
 // Creating route definition for the '/' path
@@ -17,6 +17,28 @@ export default function RangePage() {
 
     const navigateToTeam= ()=>{
         navigate({ to: '/team'})
+    }
+
+    // does nothing for now, just a temporary fix to get buttons working for
+    // range actions
+    const placeholder= ()=>{
+        return
+    }
+
+    // State for each dropdown menu
+    const [difficulty, setDifficulty] = useState('');
+    const [machinesPresent, setMachinesPresent] = useState('');
+    const [category, setCategory] = useState('');
+    const [windowsCount, setWindowsCount] = useState('');
+    const [linuxCount, setLinuxCount] = useState('');
+    const [randomCount, setRandomCount] = useState('');
+
+    function DropdownMenu() {
+        const [selectedOptions, setSelectedOption] = useState('');
+
+        const handleSelectChange = (event) => {
+            setSelectedOption(event.target.value);
+        };
     }
     
 
@@ -37,28 +59,129 @@ export default function RangePage() {
             </div>
 
             <div className={styles.mainContent}>
-                <h1 className={styles.mainHeading}>MANAGE RANGE</h1>
-                
-                <div className={styles.topContentRow}>
-                    <div className={styles.contentSection}>
-                        <h2>Range Status</h2>
-                        <p>{`{range deployed & active?}`}</p>
-                    </div>
-                    <div className={styles.contentSection}>
-                        <h2>Range Info</h2>
-                        <p>{`{num machines, subnet}`}</p>
-                    </div>
+    <h1 className={styles.mainHeading}>Manage Range</h1>
+    <div className={styles.contentGrid}>
+        <div className={styles.leftColumn}>
+            {/* Range Actions Section */}
+            <div className={styles.formSection}>
+                <h2>Range Actions</h2>
+                <div className={styles.buttonGroup}>
+                    <button className={styles.deployButton} onClick={placeholder}>
+                        {`{deploy/shutdown}`}
+                    </button>
+                    <button className={styles.resetButton} onClick={placeholder}>
+                        Reset
+                    </button>
                 </div>
+            </div>
 
-                <div className={styles.machineContainer}>
-                    {Array.from({ length: 4 }).map((_, index) => (
-                        <div key={index} className={styles.machineBlock}>
-                            <h3>{`{MACHINE}`}</h3>
-                            <p>{`{service}`}</p>
-                            <p>{`{ip}`}</p>
-                            <p>{`{up/down}`}</p>
+            {/* Pre Deployment Options Section */}
+            <div className={styles.formSection}>
+                <h2>Pre Deployment Options</h2>
+                <p className={styles.lockedText}>{`{displays LOCKED if range is deployed}`}</p>
+                <br></br>
+                
+                <label className={styles.label}>Range Difficulty</label><br></br>
+                <select 
+                    className={styles.select} 
+                    value={difficulty} 
+                    onChange={(e) => setDifficulty(e.target.value)}
+                >
+                    <option value="" disabled>Value</option>
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+                
+                <br></br><br></br>
+                <label className={styles.label}>Machines Present</label>
+                <br></br>
+                <select 
+                    className={styles.select} 
+                    value={machinesPresent} 
+                    onChange={(e) => setMachinesPresent(e.target.value)}
+                >
+                    <option value="" disabled>Value</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                </select>
+
+                <div className={styles.toggleContainer}>
+                    <br></br>
+                    <label className={styles.label}>Segmentation?</label>
+                    <span className={styles.toggleSwitch}>
+                        <input type="checkbox" />
+                        <span className={styles.slider}></span>
+                    </span>
+                </div>
+            </div>
+
+            {/* Category Section */}
+            <br></br><br></br>
+            <div className={styles.formSection}>
+                <h2>Category</h2>
+                <label className={styles.label}>Select Category Practice</label>
+                <br></br>
+                <select 
+                    className={styles.select} 
+                    value={category} 
+                    onChange={(e) => setCategory(e.target.value)}
+                >
+                    <option value="" disabled>Value</option>
+                    <option value="web-app-exploits">Web App Exploits</option>
+                    <option value="active-directory">Active Directory</option>
+                    <option value="linux-privesc">Linux Privesc</option>
+                    <option value="reverse-engineering">Reverse Engineering</option>
+                </select>
+            </div>
+        </div>
+
+                <div className={styles.rightColumn}>
+                        {/* Network Composition Section */}
+                        <div className={styles.formSection}>
+                            <h2>Network Composition &#123;amt machines&#125;</h2>
+                            <label className={styles.label}>Windows</label>
+                            <br></br>
+                            <select 
+                                className={styles.select} 
+                                value={windowsCount} 
+                                onChange={(e) => setWindowsCount(e.target.value)}
+                            >
+                                <option value="" disabled>Value</option>
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                            </select>
+                            <br></br><br></br>
+                            <label className={styles.label}>Linux</label>
+                            <br></br>
+                            <select 
+                                className={styles.select} 
+                                value={linuxCount} 
+                                onChange={(e) => setLinuxCount(e.target.value)}
+                            >
+                                <option value="" disabled>Value</option>
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                            </select>
+                            <br></br><br></br>
+                            <label className={styles.label}>Random</label>
+                            <br></br>
+                            <select 
+                                className={styles.select} 
+                                value={randomCount} 
+                                onChange={(e) => setRandomCount(e.target.value)}
+                            >
+                                <option value="" disabled>Value</option>
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                            </select>
                         </div>
-                    ))}
+                    </div>
                 </div>
             </div>
         </div>

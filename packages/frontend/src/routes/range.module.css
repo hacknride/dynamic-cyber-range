@@ -82,9 +82,32 @@
     margin-top: 50px;
   }
 
-  .topContentRow {
-    display: flex;
-    gap: 500px;
-    margin-top: 20px;
-    align-items: flex-start;
-  }
+.topContentRow {
+display: flex;
+white-space: nowrap;
+gap: 500px;
+margin-top: 20px;
+align-items: flex-start;
+flex-direction: row;
+}
+
+    /* Range Action Buttons */
+    .rangeActionsButton button {
+        display: block;
+        width: 100%;
+        padding: 10px;
+        margin-top: 10px;
+        background-color: #34495e;
+        color: #ecf0f1;
+        border: none;
+        cursor: pointer;
+        border-radius: 4px;
+        text-align: center;
+    }
+
+.select {
+    width: 200px;
+    max-width: 200px;
+    height: 30px;
+    border-radius: 5px;
+}
