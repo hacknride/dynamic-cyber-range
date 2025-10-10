@@ -24,5 +24,9 @@
   "devDependencies": {
     "concurrently": "^9.1.2"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@tanstack/react-router": "^1.131.27",
+    "@tanstack/router-vite-plugin": "^1.131.27"
+  }
 }
