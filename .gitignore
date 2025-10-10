@@ -16,3 +16,7 @@ packages/backend/dist
 packages/backend/dist-ssr
 packages/backend/*.local
 packages/backend/.env
+packages/frontend/src/routeTree.gen.ts
+
+# vscode settings
+.vscode/settings.json
