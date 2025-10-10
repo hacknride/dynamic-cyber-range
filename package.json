@@ -17,12 +17,16 @@
     "packages/*"
   ],
   "scripts": {
-  "dev:frontend": "npm --workspace packages/frontend run dev",
-  "dev:backend": "npm --workspace packages/backend run dev",
-  "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\""
-},
+    "dev:frontend": "npm --workspace packages/frontend run dev",
+    "dev:backend": "npm --workspace packages/backend run dev",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\""
+  },
   "devDependencies": {
     "concurrently": "^9.1.2"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@tanstack/react-router": "^1.131.27",
+    "@tanstack/router-vite-plugin": "^1.131.27"
+  }
 }
