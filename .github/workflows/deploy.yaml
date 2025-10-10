@@ -36,3 +36,14 @@ jobs:
 
       - name: Start service
         run: sudo systemctl start dcr-app
+        
+      - name: Smoke check (direct to port 3000)
+        run: |
+          for i in {1..60}; do
+            code=$(curl -fsS -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/ || true)
+            if [ "$code" = "200" ]; then
+              echo "OK (200)"; exit 0
+            fi
+            sleep 2
+          done
+          echo "Smoke check failed"; exit 1
