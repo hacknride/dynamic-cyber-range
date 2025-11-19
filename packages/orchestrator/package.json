@@ -1,0 +1,16 @@
+{
+  "name": "orchestrator",
+  "version": "1.0.0",
+  "description": "Orchestrator backend for the cyberrange",
+  "main": "./src/index.js",
+  "type": "module",
+  "scripts": {
+    "srv": "nodemon ./src/index.js"
+  },
+  "author": "hacknride",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "js-yaml": "^4.1.1"
+  }
+}
