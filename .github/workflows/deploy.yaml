@@ -1,0 +1,49 @@
+name: Deploy (runner, no-git)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - name: Checkout (uses ephemeral GITHUB_TOKEN)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Stop service
+        run: sudo systemctl stop dcr-app || true
+
+      - name: Sync workspace -> app dir
+        run: |
+          APP_DIR=/home/cyberrange/dynamic-cyber-range
+          rsync -a --delete --exclude=".git" ./ "$APP_DIR"/
+
+      - name: Ensure Node & deps
+        run: |
+          export NVM_DIR="/home/cyberrange/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+          nvm use --silent 22 || nvm install 22
+          cd /home/cyberrange/dynamic-cyber-range
+          npm ci --workspaces --include=dev
+
+      - name: Start service
+        run: sudo systemctl start dcr-app
+        
+      - name: Smoke check (direct to port 3000)
+        run: |
+          for i in {1..60}; do
+            code=$(curl -fsS -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/ || true)
+            if [ "$code" = "200" ]; then
+              echo "OK (200)"; exit 0
+            fi
+            sleep 2
+          done
+          echo "Smoke check failed"; exit 1

@@ -1,189 +1,193 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import React, { useState } from "react";
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import React, { useState } from 'react';
 import styles from './range.module.css';
 
-// Creating route definition for the '/' path
 export const Route = createFileRoute('/range')({
-    component: RangePage,
-})
+  component: Range,
+});
 
-export default function RangePage() {
+function Range() {
+  const navigate = useNavigate();
 
-    const navigate = useNavigate()
+  const [difficulty, setDifficulty] = useState('medium');
+  const [machineCount, setMachineCount] = useState(4);
+  const [linuxCount, setLinuxCount] = useState(2);
+  const [windowsCount, setWindowsCount] = useState(2);
 
-    const navigateToLanding= ()=>{
-        navigate({ to: '/'})
-    }
+  const handleDeploy = () => {
+    // These controls will later be wired to the backend to deploy a real range
+    alert('Deploy would trigger a real range deployment once the backend is integrated.');
+  };
 
-    const navigateToTeam= ()=>{
-        navigate({ to: '/team'})
-    }
+  const handleReset = () => {
+    setDifficulty('medium');
+    setMachineCount(4);
+    setLinuxCount(2);
+    setWindowsCount(2);
+  };
 
-    // does nothing for now, just a temporary fix to get buttons working for
-    // range actions
-    const placeholder= ()=>{
-        return
-    }
+  return (
+    <div className={styles.container}>
+      {/* Sidebar navigation */}
+      <aside className={styles.sidebar}>
+        <div className={styles.gridBox}></div>
+        <h1 className={styles.title}>Manage Range</h1>
 
-    // State for each dropdown menu
-    const [difficulty, setDifficulty] = useState('');
-    const [machinesPresent, setMachinesPresent] = useState('');
-    const [category, setCategory] = useState('');
-    const [windowsCount, setWindowsCount] = useState('');
-    const [linuxCount, setLinuxCount] = useState('');
-    const [randomCount, setRandomCount] = useState('');
+        <button
+          className={styles.navButton}
+          onClick={() => navigate({ to: '/' })}
+        >
+          Overview
+        </button>
+        <button
+          className={styles.navButton}
+          onClick={() => navigate({ to: '/team' })}
+        >
+          Manage Team
+        </button>
+        <button className={styles.navButtonActive}>Manage Range</button>
 
-    function DropdownMenu() {
-        const [selectedOptions, setSelectedOption] = useState('');
-
-        const handleSelectChange = (event) => {
-            setSelectedOption(event.target.value);
-        };
-    }
-    
-
-    return (
-        <div className={styles.container}>
-            <div className={styles.sidebar}>
-                <div className={styles.gridBox}></div>
-                <h1 className={styles.welcomeText}>Welcome user</h1>
-                <button className={styles.navButton} onClick={navigateToLanding}>Overview</button>
-                <button className={styles.navButton} onClick={navigateToTeam}>Manage Team</button>
-                <button className={styles.navButton}>Manage Range</button>
-                <div className={styles.settingsGroup}>
-                </div>
-                <div className={styles.settingsGroup}>
-                    <button className={styles.navButton}>User Settings</button>
-                    <button className={styles.navButton}>Logout</button>
-                </div>
-            </div>
-
-            <div className={styles.mainContent}>
-    <h1 className={styles.mainHeading}>Manage Range</h1>
-    <div className={styles.contentGrid}>
-        <div className={styles.leftColumn}>
-            {/* Range Actions Section */}
-            <div className={styles.formSection}>
-                <h2>Range Actions</h2>
-                <div className={styles.buttonGroup}>
-                    <button className={styles.deployButton} onClick={placeholder}>
-                        {`{deploy/shutdown}`}
-                    </button>
-                    <button className={styles.resetButton} onClick={placeholder}>
-                        Reset
-                    </button>
-                </div>
-            </div>
-
-            {/* Pre Deployment Options Section */}
-            <div className={styles.formSection}>
-                <h2>Pre Deployment Options</h2>
-                <p className={styles.lockedText}>{`{displays LOCKED if range is deployed}`}</p>
-                <br></br>
-                
-                <label className={styles.label}>Range Difficulty</label><br></br>
-                <select 
-                    className={styles.select} 
-                    value={difficulty} 
-                    onChange={(e) => setDifficulty(e.target.value)}
-                >
-                    <option value="" disabled>Value</option>
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
-                </select>
-                
-                <br></br><br></br>
-                <label className={styles.label}>Machines Present</label>
-                <br></br>
-                <select 
-                    className={styles.select} 
-                    value={machinesPresent} 
-                    onChange={(e) => setMachinesPresent(e.target.value)}
-                >
-                    <option value="" disabled>Value</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                </select>
-
-                <div className={styles.toggleContainer}>
-                    <br></br>
-                    <label className={styles.label}>Segmentation?</label>
-                    <span className={styles.toggleSwitch}>
-                        <input type="checkbox" />
-                        <span className={styles.slider}></span>
-                    </span>
-                </div>
-            </div>
-
-            {/* Category Section */}
-            <br></br><br></br>
-            <div className={styles.formSection}>
-                <h2>Category</h2>
-                <label className={styles.label}>Select Category Practice</label>
-                <br></br>
-                <select 
-                    className={styles.select} 
-                    value={category} 
-                    onChange={(e) => setCategory(e.target.value)}
-                >
-                    <option value="" disabled>Value</option>
-                    <option value="web-app-exploits">Web App Exploits</option>
-                    <option value="active-directory">Active Directory</option>
-                    <option value="linux-privesc">Linux Privesc</option>
-                    <option value="reverse-engineering">Reverse Engineering</option>
-                </select>
-            </div>
+        <div className={styles.settingsGroup}>
+          <button className={styles.navButton}>User Settings</button>
         </div>
+      </aside>
 
-                <div className={styles.rightColumn}>
-                        {/* Network Composition Section */}
-                        <div className={styles.formSection}>
-                            <h2>Network Composition &#123;amt machines&#125;</h2>
-                            <label className={styles.label}>Windows</label>
-                            <br></br>
-                            <select 
-                                className={styles.select} 
-                                value={windowsCount} 
-                                onChange={(e) => setWindowsCount(e.target.value)}
-                            >
-                                <option value="" disabled>Value</option>
-                                <option value="0">0</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                            </select>
-                            <br></br><br></br>
-                            <label className={styles.label}>Linux</label>
-                            <br></br>
-                            <select 
-                                className={styles.select} 
-                                value={linuxCount} 
-                                onChange={(e) => setLinuxCount(e.target.value)}
-                            >
-                                <option value="" disabled>Value</option>
-                                <option value="0">0</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                            </select>
-                            <br></br><br></br>
-                            <label className={styles.label}>Random</label>
-                            <br></br>
-                            <select 
-                                className={styles.select} 
-                                value={randomCount} 
-                                onChange={(e) => setRandomCount(e.target.value)}
-                            >
-                                <option value="" disabled>Value</option>
-                                <option value="0">0</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
+      {/* Main configuration content */}
+      <main className={styles.mainContent}>
+        <header className={styles.header}>
+          <h2>Range Configuration</h2>
+          <p>
+            Use these controls to describe the kind of training environment you want.
+            This page currently acts as a configuration mock and will be wired to the
+            backend deployment pipeline in a later phase.
+          </p>
+        </header>
+
+        <section className={styles.cardGrid}>
+          <div className={styles.card}>
+            <h3>Difficulty &amp; Size</h3>
+
+            <label className={styles.field}>
+              <span>Difficulty</span>
+              <select
+                value={difficulty}
+                onChange={(e) => setDifficulty(e.target.value)}
+              >
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              <span>Total machines</span>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={machineCount}
+                onChange={(e) => setMachineCount(Number(e.target.value))}
+              />
+            </label>
+          </div>
+
+          <div className={styles.card}>
+            <h3>Operating Systems</h3>
+
+            <label className={styles.field}>
+              <span>Linux hosts</span>
+              <input
+                type="number"
+                min={0}
+                max={machineCount}
+                value={linuxCount}
+                onChange={(e) => setLinuxCount(Number(e.target.value))}
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span>Windows hosts</span>
+              <input
+                type="number"
+                min={0}
+                max={machineCount}
+                value={windowsCount}
+                onChange={(e) => setWindowsCount(Number(e.target.value))}
+              />
+            </label>
+
+            <p className={styles.helperText}>
+              The sum of Linux and Windows hosts should not exceed the total machine count.
+            </p>
+          </div>
+
+          <div className={styles.card}>
+            <h3>Attack Focus</h3>
+
+            <label className={styles.checkboxField}>
+              <input type="checkbox" defaultChecked />
+              <span>Web application testing</span>
+            </label>
+
+            <label className={styles.checkboxField}>
+              <input type="checkbox" />
+              <span>Active Directory / internal network</span>
+            </label>
+
+            <label className={styles.checkboxField}>
+              <input type="checkbox" />
+              <span>Cloud / external services</span>
+            </label>
+
+            <label className={styles.checkboxField}>
+              <input type="checkbox" />
+              <span>Blue-team / detection focused</span>
+            </label>
+          </div>
+        </section>
+
+        <section className={styles.summarySection}>
+          <h3>Current Selection</h3>
+          <div className={styles.summaryRow}>
+            <div className={styles.summaryItem}>
+              <span className={styles.summaryLabel}>Difficulty</span>
+              <span className={styles.summaryValue}>{difficulty}</span>
             </div>
-        </div>
-    );
+            <div className={styles.summaryItem}>
+              <span className={styles.summaryLabel}>Machines</span>
+              <span className={styles.summaryValue}>{machineCount}</span>
+            </div>
+            <div className={styles.summaryItem}>
+              <span className={styles.summaryLabel}>Linux / Windows</span>
+              <span className={styles.summaryValue}>
+                {linuxCount} / {windowsCount}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.actions}>
+          <button className={styles.secondaryButton}>Preview config</button>
+          <div className={styles.actionsRight}>
+            <button
+              className={styles.dangerButton}
+              type="button"
+              onClick={handleReset}
+            >
+              Reset
+            </button>
+            <button
+              className={styles.primaryButton}
+              type="button"
+              onClick={handleDeploy}
+            >
+              Deploy range
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
 }
+
+export default Range;
