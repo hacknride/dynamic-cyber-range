@@ -35,15 +35,15 @@ export default function TeamPage() {
                     <button className={styles.navButton}>Logout</button>
                 </div>
             </div>
-
-            <div className={styles.mainContent}>
+   
+            {/*    <div className={styles.mainContent}>
                 <h1 className={styles.mainHeading}>MANAGE TEAM</h1>
                 
-                <div className={styles.topContentRow}>
+             <div className={styles.topContentRow}>
                     <div className={styles.contentSection}>
                         <h2>Your VPN Access</h2>
                     </div>
-                </div>
+               </div>*/}
 
                 <div className={styles.vpnBlock}>
                         <p className={styles.usernameText}>{`{username}`}</p>
