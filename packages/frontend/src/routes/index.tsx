@@ -42,7 +42,13 @@ return (
   <div className={styles.container}>
     {/* Sidebar */}
     <div className={styles.sidebar}>
-      <div className={styles.gridBox}></div>
+      <div className={styles.gridBox}>
+      <div className={styles.imageContainer}>
+  <img src={myPhoto} alt="My Photo" className={styles.myImage} />
+</div>
+
+
+      </div>
       <h1 className={styles.welcomeText}>Welcome to the Dynamic Cyber Range</h1>
 
       <button className={styles.navButton}>Overview</button>
