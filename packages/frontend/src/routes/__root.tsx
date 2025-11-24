@@ -36,12 +36,12 @@ import React from "react";
 
 export const Route = createRootRoute({
     component: () => (
-        <>
+      /*  <>
             <div className="p-2 flex gap-1">
                 {/* Navigate can go here if it's universal */}
-            </div>
+           /* </div>
             <hr />
             <Outlet /> {/* This is where child routes will be rendered */}
-        </>
-    ),
+      /*  </>
+  /*  ),
 })
