@@ -44,7 +44,7 @@ return (
     <div className={styles.sidebar}>
       <div className={styles.gridBox}>
       <div className={styles.imageContainer}>
-  <img src=packages/frontend/public/images.jpg alt="My Photo" className={styles.myImage} />
+  <img src="/images.jpg" alt="My Photo" className={styles.myImage} />
 </div>
 
 
