@@ -66,8 +66,7 @@ export default function TeamPage() {
                             <p>{`{up/down}`}</p>
                         </div>
                     ))}
-                </div>
             </div>
-        </>
+        </div>
     );
 }
