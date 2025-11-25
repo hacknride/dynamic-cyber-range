@@ -34,9 +34,10 @@
 }
 
 .welcomeText {
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   font-weight: 600;
   line-height: 1.4;
+  margin-top: 80px
 }
 
 .navButton {
