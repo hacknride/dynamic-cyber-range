@@ -52,12 +52,12 @@ return (
       <h1 className={styles.welcomeText}>Welcome to the Dynamic Cyber Range</h1>
 
       <button className={styles.navButton}>Overview</button>
-      <button
+        {/*<button
         className={styles.navButton}
         onClick={navigateToTeam}
       >
         Manage Team
-      </button>
+      </button>}*/}
       <button
         className={styles.navButton}
         onClick={navigateToRange}
