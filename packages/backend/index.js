@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import rangesRouter from "./src/routes/ranges.js";
+import currentJobRouter from "./src/routes/currentJob.js";
 
 dotenv.config();
 
@@ -21,6 +22,9 @@ app.get("/favicon.ico", (_req, res) => res.status(204).end());
 
 // ONLY mount your ranges API
 app.use("/api/ranges", rangesRouter);
+
+// Mount current job API
+app.use("/api/current-job", currentJobRouter);
 
 app.listen(6247, () => {
   console.log("Server is running on http://localhost:6247");
