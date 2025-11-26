@@ -6,17 +6,93 @@ export const Route = createFileRoute('/range')({
   component: Range,
 });
 
+type RangePayload = {
+  difficulty: 'easy' | 'medium' | 'hard';
+  machinesPresent: number;
+  category: string;         // TEMP: fixed until you wire checkboxes
+  windowsCount: number;
+  linuxCount: number;
+  randomCount: number;
+  segmentation?: boolean;   // not yet in UI; add later if needed
+};
+
 function Range() {
   const navigate = useNavigate();
 
-  const [difficulty, setDifficulty] = useState('medium');
-  const [machineCount, setMachineCount] = useState(4);
-  const [linuxCount, setLinuxCount] = useState(2);
-  const [windowsCount, setWindowsCount] = useState(2);
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [machineCount, setMachineCount] = useState<number>(4);
+  const [linuxCount, setLinuxCount] = useState<number>(2);
+  const [windowsCount, setWindowsCount] = useState<number>(2);
 
-  const handleDeploy = () => {
-    // These controls will later be wired to the backend to deploy a real range
-    alert('Deploy would trigger a real range deployment once the backend is integrated.');
+  // ────────────────────────────────────────────────────────────────────────────
+  // Helpers
+  const buildPayload = (): RangePayload | null => {
+    const mp = Number(machineCount ?? 0);
+    const lc = Number(linuxCount ?? 0);
+    const wc = Number(windowsCount ?? 0);
+
+    if (!difficulty) {
+      alert('Please select a difficulty.');
+      return null;
+    }
+    if (!Number.isFinite(mp) || mp < 1) {
+      alert('Total machines must be a number ≥ 1.');
+      return null;
+    }
+    if ([lc, wc].some(n => !Number.isFinite(n) || n < 0)) {
+      alert('Linux/Windows must be numbers ≥ 0.');
+      return null;
+    }
+    if (lc + wc > mp) {
+      alert(`Linux + Windows (${lc + wc}) cannot exceed Total machines (${mp}).`);
+      return null;
+    }
+
+    const rc = mp - (lc + wc); // fill the rest as "random"
+
+    const payload: RangePayload = {
+      difficulty,
+      machinesPresent: mp,
+      category: 'web-app-exploits', // TODO: derive from the checkboxes later
+      windowsCount: wc,
+      linuxCount: lc,
+      randomCount: rc,
+      // segmentation: false, // add when you expose a toggle
+    };
+
+    return payload;
+  };
+
+  const handlePreview = () => {
+    const payload = buildPayload();
+    if (!payload) return;
+    alert('Payload to be sent:\n\n' + JSON.stringify(payload, null, 2));
+  };
+
+  const handleDeploy = async () => {
+    const payload = buildPayload();
+    if (!payload) return;
+
+    try {
+      const res = await fetch('/api/ranges', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const msg = await res.text().catch(() => `HTTP ${res.status}`);
+        throw new Error(msg || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json(); // { id, status, machines, config? }
+      // Navigate to the status page for this new range
+      navigate({ to: '/range/$id', params: { id: data.id } });
+    } catch (err: any) {
+      console.error('Error creating range:', err);
+      alert(`Error creating range: ${err?.message ?? String(err)}`);
+    }
   };
 
   const handleReset = () => {
@@ -71,7 +147,7 @@ function Range() {
               <span>Difficulty</span>
               <select
                 value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value)}
+                onChange={(e) => setDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
               >
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
@@ -118,12 +194,14 @@ function Range() {
 
             <p className={styles.helperText}>
               The sum of Linux and Windows hosts should not exceed the total machine count.
+              (The remainder will be treated as Random.)
             </p>
           </div>
 
           <div className={styles.card}>
             <h3>Attack Focus</h3>
 
+            {/* These are visual for now. Later, wire to state to set category(s). */}
             <label className={styles.checkboxField}>
               <input type="checkbox" defaultChecked />
               <span>Web application testing</span>
@@ -158,29 +236,23 @@ function Range() {
               <span className={styles.summaryValue}>{machineCount}</span>
             </div>
             <div className={styles.summaryItem}>
-              <span className={styles.summaryLabel}>Linux / Windows</span>
+              <span className={styles.summaryLabel}>Linux / Windows / Random</span>
               <span className={styles.summaryValue}>
-                {linuxCount} / {windowsCount}
+                {linuxCount} / {windowsCount} / {Math.max(0, machineCount - (linuxCount + windowsCount))}
               </span>
             </div>
           </div>
         </section>
 
         <section className={styles.actions}>
-          <button className={styles.secondaryButton}>Preview config</button>
+          <button className={styles.secondaryButton} type="button" onClick={handlePreview}>
+            Preview config
+          </button>
           <div className={styles.actionsRight}>
-            <button
-              className={styles.dangerButton}
-              type="button"
-              onClick={handleReset}
-            >
+            <button className={styles.dangerButton} type="button" onClick={handleReset}>
               Reset
             </button>
-            <button
-              className={styles.primaryButton}
-              type="button"
-              onClick={handleDeploy}
-            >
+            <button className={styles.primaryButton} type="button" onClick={handleDeploy}>
               Deploy range
             </button>
           </div>
