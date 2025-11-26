@@ -51,7 +51,7 @@ type CurrentJob = {
     vars: Record<string, any>;
   }>;
   machines: Machine[];
-  error: string | null;
+    error: string | { message: string; stack?: string } | null;
 };
 
 // Creating route definition for the '/' path
@@ -162,7 +162,17 @@ function Landing() {
                                     </strong>
                                 </p>
                                 {currentJob.error && (
-                                    <p style={{ color: '#f44336' }}>Error: {currentJob.error}</p>
+                                    <div style={{ color: '#f44336', marginTop: '8px' }}>
+                                        <p style={{ margin: 0 }}>
+                                            Error: {typeof currentJob.error === 'string' ? currentJob.error : currentJob.error.message}
+                                        </p>
+                                        {typeof currentJob.error === 'object' && currentJob.error?.stack && (
+                                            <details style={{ marginTop: '6px', color: '#ffdddd' }}>
+                                                <summary style={{ cursor: 'pointer' }}>Details</summary>
+                                                <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.75rem', margin: '8px 0 0 0' }}>{currentJob.error.stack}</pre>
+                                            </details>
+                                        )}
+                                    </div>
                                 )}
                             </>
                         ) : (
