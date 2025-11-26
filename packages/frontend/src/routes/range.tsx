@@ -48,7 +48,7 @@ function Range() {
         <button className={styles.navButtonActive}>Manage Range</button>
 
         <div className={styles.settingsGroup}>
-          <button className={styles.navButton}>User Settings</button>
+          {/* <button className={styles.navButton}>User Settings</button>*/}
         </div>
       </aside>
 
