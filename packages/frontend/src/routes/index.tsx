@@ -100,10 +100,10 @@ return (
             <p>{`{up/down}`}</p>
           </div>
         ))}
-      </div>
+      
     </div>
   </div>
 );
 }
-)
+
 export default Landing;
