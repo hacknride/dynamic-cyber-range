@@ -115,6 +115,9 @@ function Range() {
                 onChange={(e) => setWindowsCount(Number(e.target.value))}
               />
             </label>
+             <p className={styles.warningText}>
+                 OS limit: Max {machineCount} machines per user
+            </p>
 
             <p className={styles.helperText}>
               The sum of Linux and Windows hosts should not exceed the total machine count.
