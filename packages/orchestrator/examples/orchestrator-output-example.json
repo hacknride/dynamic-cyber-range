@@ -1,0 +1,58 @@
+{
+    "range-id": 0,
+    "machines" : [
+        {
+            "hostname": "machine-1",
+            "scenario": "web-exploits",
+            "service": "service",
+            "os": "linux",
+            "ip": "ip-address"
+        }
+    ]
+}
+
+{
+    "range-id": 2,
+    "status": "failed",
+    "progress": "provisioning infrastructure with Terraform...",
+    "createdAt": "2025-11-10T03:28:18.065Z",
+    "updatedAt": "2025-11-10T03:28:18.110Z",
+    "options": {
+        "difficulty": "easy",
+        "amt-machines": 2,
+        "composition": {
+            "windows": 0,
+            "linux": 2,
+            "random": 0
+        }
+    },
+    "scenarios": [
+        {
+            "name": "web-exploits",
+            "vars": {}
+        }
+    ],
+    "machines": [
+        {
+            "hostname": "machine-1",
+            "scenario": "web-exploits",
+            "service": "web-exploits",
+            "os": "linux",
+            "ip": "<awaiting-terraform>"
+        },
+        {
+            "hostname": "machine-2",
+            "scenario": "web-exploits",
+            "service": "web-exploits",
+            "os": "linux",
+            "ip": "<awaiting-terraform>"
+        }
+    ],
+    "error": {
+        "message": "terraform -chdir /root/orchestrator/terraform init failed (rc=1)\nInvalid -chdir option: must include an equals sign followed by a directory path, like -chdir=example\n",
+        "stack": "Error: terraform -chdir /root/orchestrator/terraform init failed (rc=1)\nInvalid -chdir option: must include an equals sign followed by a directory path, like -chdir=example\n\n    at ChildProcess.<anonymous> (file:///root/orchestrator/index.js:259:37)\n    at ChildProcess.emit (node:events:517:28)\n    at maybeClose (node:internal/child_process:1098:16)\n    at ChildProcess._handle.onexit (node:internal/child_process:303:5)"
+    }
+}
+
+
+{"range-id":3,"status":"failed","progress":"provisioning infrastructure with Terraform...","createdAt":"2025-11-10T03:34:57.958Z","updatedAt":"2025-11-10T03:34:58.005Z","options":{"difficulty":"easy","amt-machines":2,"composition":{"windows":0,"linux":2,"random":0}},"scenarios":[{"name":"web-exploits","vars":{}}],"machines":[{"hostname":"machine-1","scenario":"web-exploits","service":"web-exploits","os":"linux","ip":"<awaiting-terraform>"},{"hostname":"machine-2","scenario":"web-exploits","service":"web-exploits","os":"linux","ip":"<awaiting-terraform>"}],"error":{"message":"terraform -chdir /root/orchestrator/terraform init failed (rc=1)\nInvalid -chdir option: must include an equals sign followed by a directory path, like -chdir=example\n","stack":"Error: terraform -chdir /root/orchestrator/terraform init failed (rc=1)\nInvalid -chdir option: must include an equals sign followed by a directory path, like -chdir=example\n\n    at ChildProcess.<anonymous> (file:///root/orchestrator/index.js:259:37)\n    at ChildProcess.emit (node:events:517:28)\n    at maybeClose (node:internal/child_process:1098:16)\n    at ChildProcess._handle.onexit (node:internal/child_process:303:5)"}}
