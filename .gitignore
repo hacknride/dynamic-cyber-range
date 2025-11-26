@@ -18,5 +18,15 @@ packages/backend/*.local
 packages/backend/.env
 packages/frontend/src/routeTree.gen.ts
 
+# Orchestrator specific ignores
+packages/orchestrator/src/data
+packages/orchestrator/node_modules
+packages/orchestrator/terraform/.terraform
+packages/orchestrator/terraform/.terraform.lock.hcl
+packages/orchestrator/terraform/*.tfstate
+packages/orchestrator/terraform/*.tfstate.*
+packages/orchestrator/terraform/*.tfvars
+packages/orchestrator/terraform/*.tfvars.*
+
 # vscode settings
 .vscode/settings.json
