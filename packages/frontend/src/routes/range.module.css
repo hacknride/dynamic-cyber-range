@@ -266,4 +266,11 @@
   .mainContent {
     padding: 20px 16px;
   }
+  .warningText {
+  color: #ffcc00;
+  font-weight: bold;
+  margin-top: 8px;
+}
+
+
 }
