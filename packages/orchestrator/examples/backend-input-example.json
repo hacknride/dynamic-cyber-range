@@ -1,0 +1,19 @@
+{
+    "options": {
+        "difficulty": "string",
+        "amt-machines": 5,
+        "composition": {
+            "windows": 0,
+            "linux": 0,
+            "random": 5
+        },
+        "segmentation": false
+    },
+    "scenarios": [
+        {
+            "name": "web-exploits",
+            "vars": {}
+        }
+    ]
+}
+

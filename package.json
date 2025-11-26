@@ -17,9 +17,10 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:frontend": "npm --workspace packages/frontend run dev",
-    "dev:backend": "npm --workspace packages/backend run dev",
-    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\""
+    "dcr:frontend": "npm --workspace packages/frontend run dev",
+    "dcr:backend": "npm --workspace packages/backend run dev",
+    "dcr:external": "concurrently \"npm run dcr:frontend\" \"npm run dcr:backend\"",
+    "dcr:orchestrator": "npm --workspace packages/orchestrator run srv"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
