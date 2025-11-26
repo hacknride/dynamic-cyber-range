@@ -22,6 +22,16 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import React, { useState, useEffect } from 'react';
 import styles from './index.module.css';
 
+type Machine = {
+  hostname: string;
+  scenario: string;
+  service: string;
+  os: string;
+  ip: string;
+  saltStates?: string[];
+  vars?: Record<string, any>;
+};
+
 type CurrentJob = {
   status: string;
   progress: string;
@@ -40,12 +50,7 @@ type CurrentJob = {
     name: string;
     vars: Record<string, any>;
   }>;
-  machines: Array<{
-    id: string;
-    name: string;
-    ipAddress: string;
-    osType: string;
-  }>;
+  machines: Machine[];
   error: string | null;
 };
 
@@ -215,12 +220,11 @@ function Landing() {
                     {loading ? (
                         <p>Loading machines...</p>
                     ) : currentJob && currentJob.machines.length > 0 ? (
-                        currentJob.machines.map((machine) => (
-                            <div key={machine.id} className={styles.machineBlock}>
-                                <h4>{machine.name}</h4>
-                                <p>{machine.osType}</p>
-                                <p>{machine.ipAddress}</p>
-                                <p>Status: Active</p>
+                        currentJob.machines.map((machine, idx) => (
+                            <div key={idx} className={styles.machineBlock}>
+                                <h4>{machine.hostname} ({machine.ip})</h4>
+                                <p>{machine.os}</p>
+                                <p>Service: {machine.service}</p>
                             </div>
                         ))
                     ) : (
