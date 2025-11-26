@@ -2,6 +2,16 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import React, { useState } from "react";
 import styles from './range.module.css';
 
+// Define or import the RangePayload type
+type RangePayload = {
+    difficulty: 'easy' | 'medium' | 'hard';
+    machinesPresent: number;
+    category: string;
+    windowsCount: number;
+    linuxCount: number;
+    randomCount: number;
+};
+
 // Creating route definition for the '/' path
 export const Route = createFileRoute('/range')({
     component: RangePage,
@@ -24,6 +34,73 @@ export default function RangePage() {
     const placeholder= ()=>{
         return
     }
+    const sendToBackend = async () => {
+        // Coerce to numbers safely (selects often give strings)
+        const mp = Number(machinesPresent ?? 0);
+        const wc = Number(windowsCount ?? 0);
+        const lc = Number(linuxCount ?? 0);
+        const rc = Number(randomCount ?? 0);
+      
+        // Basic validation
+        if (!difficulty || !category) {
+          alert("Please select a difficulty and a category.");
+          return;
+        }
+        if (!Number.isFinite(mp) || mp < 1) {
+          alert("Machines Present must be a number ≥ 1.");
+          return;
+        }
+        if ([wc, lc, rc].some((n) => !Number.isFinite(n) || n < 0)) {
+          alert("Windows/Linux/Random must be numbers ≥ 0.");
+          return;
+        }
+        if (wc + lc + rc !== mp) {
+          alert(`Windows + Linux + Random must equal Machines Present (${mp}).`);
+          return;
+        }
+      
+        const payload: RangePayload = {
+          difficulty: difficulty as RangePayload['difficulty'],
+          machinesPresent: mp,
+          category,
+          windowsCount: wc,
+          linuxCount: lc,
+          randomCount: rc,
+        };
+      
+        try {
+          const res = await fetch('/api/ranges', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // keep if backend uses cookies
+            body: JSON.stringify(payload),
+          });
+      
+          if (!res.ok) {
+            // Try to surface server error details (Zod, etc.)
+            let msg = '';
+            try {
+              const text = await res.text();
+              msg = text || `HTTP ${res.status}`;
+            } catch {
+              msg = `HTTP ${res.status}`;
+            }
+            throw new Error(msg);
+          }
+      
+          const data = await res.json();
+          console.log('Range created:', data);
+      
+          // If you have TanStack Router's useNavigate available, you can do:
+          // navigate({ to: '/range/$id', params: { id: data.id } });
+      
+          alert(`Range created with ID: ${data.id} (status: ${data.status})`);
+        } catch (err: any) {
+          console.error('Error creating range:', err);
+          alert(`Error creating range: ${err?.message ?? String(err)}`);
+        }
+      };
+      
 
     // State for each dropdown menu
     const [difficulty, setDifficulty] = useState('');
@@ -66,7 +143,7 @@ export default function RangePage() {
             <div className={styles.formSection}>
                 <h2>Range Actions</h2>
                 <div className={styles.buttonGroup}>
-                    <button className={styles.deployButton} onClick={placeholder}>
+                    <button className={styles.deployButton} onClick={sendToBackend}>
                         {`{deploy/shutdown}`}
                     </button>
                     <button className={styles.resetButton} onClick={placeholder}>

@@ -1,10 +1,34 @@
 import express from "express";
-import { ExpressAuth } from "@auth/express";
+import cors from "cors";
 import dotenv from "dotenv";
+import rangesRouter from "./src/routes/ranges.js";
 
-dotenv.config();    // Load environment variables from .env file
+dotenv.config();
 
-// The Authentik Provider configuration
+const app = express();
+
+app.use(express.json());
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    credentials: true,
+  })
+);
+
+// Simple root + favicon (avoid any auth middleware here)
+app.get("/", (_req, res) => res.send("Welcome to the Dynamic Cyber Range API!"));
+app.get("/favicon.ico", (_req, res) => res.status(204).end());
+
+// ONLY mount your ranges API
+app.use("/api/ranges", rangesRouter);
+
+app.listen(6247, () => {
+  console.log("Server is running on http://localhost:6247");
+});
+
+import { ExpressAuth } from "@auth/express";
+
+// Authentik provider config
 const authentikProvider = {
   id: "authentik",
   name: "Authentik",
@@ -16,47 +40,26 @@ const authentikProvider = {
   idToken: true,
   checks: ["pkce", "state"],
   profile(profile) {
-    return {
-      id: profile.sub,
-      name: profile.name,
-      email: profile.email,
-    };
+    return { id: profile.sub, name: profile.name, email: profile.email };
   },
 };
 
-const app = express();
-
-// NOTE: Uncomment this line once we put this app behind Cloudflare or another reverse proxy.
-//app.set("trust proxy", true);
-
+// IMPORTANT: base path only — NO wildcard, NO regex
 app.use(
+  "/api/auth",
   ExpressAuth({
     secret: process.env.AUTH_SECRET,
     baseUrl: process.env.AUTH_BASE_URL || "http://localhost:6247",
     trustHost: true,
-    providers: [
-      authentikProvider
-    ],
+    providers: [authentikProvider],
     callbacks: {
-      async jwt({ token, account, user}) {
-        if (account) {
-          token.accessToken = account.access_token;
-        }
+      async jwt({ token, account }) {
+        if (account) token.accessToken = account.access_token;
         return token;
       },
     },
   })
 );
 
-app.get("/api/status", (req, res) => {
-  
-  if(req.auth?.user) {
-    return res.json({message: "You are authenticated!", user: req.auth.user});
-  }
-
-  res.status(401).json({ message: "You are not authenticated (womp womp)."});
-});
-
-app.listen(6247, () => {
-  console.log("Server is running on localhost:6247, hooray!");
-});
+// Optional status
+app.get("/api/status", (_req, res) => res.json({ ok: true }));

@@ -27,6 +27,8 @@
   "license": "ISC",
   "dependencies": {
     "@tanstack/react-router": "^1.131.27",
-    "@tanstack/router-vite-plugin": "^1.131.27"
+    "@tanstack/router-vite-plugin": "^1.131.27",
+    "cors": "^2.8.5",
+    "zod": "^4.1.12"
   }
 }
