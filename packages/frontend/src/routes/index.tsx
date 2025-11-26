@@ -77,7 +77,7 @@ return (
         This dashboard summarizes the current state of the cyber range,
         including deployment status and active machines.
       </p>
-
+    </div>
       <div className={styles.topContentRow}>
         <div className={styles.contentSection}>
           <h3>Range Status</h3>
