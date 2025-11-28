@@ -106,7 +106,7 @@ function Range() {
     <div className={styles.container}>
       {/* Sidebar navigation */}
       <aside className={styles.sidebar}>
-        <div className={styles.gridBox}></div>
+        <img src="/logo.svg" alt="DCR Logo" className={styles.logo} />
         <h1 className={styles.title}>Manage Range</h1>
 
         <button

@@ -21,18 +21,10 @@
   box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
 }
 
-.gridBox {
+.logo {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: repeating-linear-gradient(
-      45deg,
-      rgba(255, 255, 255, 0.08),
-      rgba(255, 255, 255, 0.08) 4px,
-      transparent 4px,
-      transparent 8px
-    );
+  object-fit: contain;
 }
 
 .title {

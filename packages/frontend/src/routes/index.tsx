@@ -110,7 +110,7 @@ function Landing() {
         <div className={styles.container}>
             {/* Sidebar */}
             <div className={styles.sidebar}>
-                <div className={styles.gridBox}></div>
+                <img src="/logo.svg" alt="DCR Logo" className={styles.logo} />
                 <h1 className={styles.welcomeText}>Welcome to the Dynamic Cyber Range</h1>
 
       <button className={styles.navButton}>Overview</button>
