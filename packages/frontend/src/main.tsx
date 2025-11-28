@@ -9,20 +9,18 @@ import {
   createRoute,
   createRouter,
 } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+// import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 
 import './styles.css'
 import reportWebVitals from './reportWebVitals.js'
 
 import App from './App'
 import RangePage from './routes/range'
-import TeamPage from './routes/team'
 
 const rootRoute = createRootRoute({
   component: () => (
     <>
       <Outlet />
-      <TanStackRouterDevtools />
     </>
   ),
 })
@@ -39,13 +37,7 @@ const rangeRoute = createRoute({
   component: RangePage,
 })
 
-const teamRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/team',
-  component: TeamPage,
-})
-
-const routeTree = rootRoute.addChildren([indexRoute, rangeRoute, teamRoute])
+const routeTree = rootRoute.addChildren([indexRoute, rangeRoute])
 
 const router = createRouter({
   routeTree,

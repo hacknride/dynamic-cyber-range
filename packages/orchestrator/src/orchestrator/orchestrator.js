@@ -90,7 +90,7 @@ export async function destroyRange({ force = false } = {}) {
   } catch (err) {
     setJob({
       status: "failed",
-      progress: "Destroy failed",
+      progress: "Destroy failed!",
       error: { message: String(err.message || err), stack: String(err.stack || "") }
     });
     return { ok: false, code: 500, error: "Destroy failed", details: currentJob.error };
@@ -160,7 +160,7 @@ async function runProvision() {
     setJob({ status: "deployed", progress: "Range deployed successfully!" });
   } catch (err) {
     console.error("[ERROR] Orchestration process failed:", err);
-    setJob({ status: "failed", error: { message: String(err.message || err), stack: String(err.stack || "") } });
+    setJob({ status: "failed", progress: "Range deployment failed", error: { message: String(err.message || err), stack: String(err.stack || "") } });
   }
 }
 
