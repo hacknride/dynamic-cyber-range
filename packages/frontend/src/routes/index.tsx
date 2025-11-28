@@ -34,9 +34,6 @@ function Landing() {
         navigate({ to: '/range' });
     };
 
-    const navigateToTeam = () => {
-        navigate({ to: '/team' });
-    };
 
 return (
   <div className={styles.container}>
@@ -46,12 +43,6 @@ return (
       <h1 className={styles.welcomeText}>Welcome to the Dynamic Cyber Range</h1>
 
       <button className={styles.navButton}>Overview</button>
-      <button
-        className={styles.navButton}
-        onClick={navigateToTeam}
-      >
-        Manage Team
-      </button>
       <button
         className={styles.navButton}
         onClick={navigateToRange}

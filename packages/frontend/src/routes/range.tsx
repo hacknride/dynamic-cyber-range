@@ -39,12 +39,6 @@ function Range() {
         >
           Overview
         </button>
-        <button
-          className={styles.navButton}
-          onClick={() => navigate({ to: '/team' })}
-        >
-          Manage Team
-        </button>
         <button className={styles.navButtonActive}>Manage Range</button>
 
         <div className={styles.settingsGroup}>
