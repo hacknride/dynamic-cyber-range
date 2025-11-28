@@ -127,9 +127,7 @@ function Range() {
         <header className={styles.header}>
           <h2>Range Configuration</h2>
           <p>
-            Use these controls to describe the kind of training environment you want.
-            This page currently acts as a configuration mock and will be wired to the
-            backend deployment pipeline in a later phase.
+            Configure your range before deployment by selecting from the options below.
           </p>
         </header>
 

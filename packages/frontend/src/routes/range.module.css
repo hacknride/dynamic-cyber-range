@@ -1,7 +1,8 @@
 /* Layout wrapper */
 .container {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background-color: #050814;
   color: #f5f7fa;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -11,6 +12,7 @@
 /* Sidebar reused idea from Overview */
 .sidebar {
   width: 260px;
+  flex-shrink: 0;
   padding: 24px 20px;
   background: radial-gradient(circle at top left, #263b63 0, #050814 55%, #02030a 100%);
   display: flex;
@@ -73,10 +75,11 @@
 /* Main panel */
 .mainContent {
   flex: 1;
-  padding: 32px 40px;
+  padding: 32px 40px 60px 40px;
   display: flex;
   flex-direction: column;
   gap: 24px;
+  overflow-y: auto;
 }
 
 .header h2 {
@@ -85,7 +88,6 @@
 }
 
 .header p {
-  max-width: 640px;
   color: #f5f7fa;
   font-size: 0.95rem;
 }
