@@ -6,8 +6,8 @@ import { tanstackRouter } from '@tanstack/router-vite-plugin'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    tanstackRouter({routesDirectory: './src/routes'}),
-    viteReact()
+    tanstackRouter({ routesDirectory: './src/routes' }),
+    viteReact(),
   ],
   test: {
     globals: true,
@@ -19,7 +19,10 @@ export default defineConfig({
     },
   },
   server: {
-    historyApiFallback: true,
+    port: 5173,
+    strictPort: true,
+    proxy: { '/api': { target: 'http://localhost:6247', changeOrigin: true } },
+  }
+  
   },
-});
-
+);

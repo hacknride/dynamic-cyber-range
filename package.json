@@ -17,9 +17,11 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:frontend": "npm --workspace packages/frontend run dev",
-    "dev:backend": "npm --workspace packages/backend run dev",
-    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\""
+    "dcr:frontend": "npm --workspace packages/frontend run dev",
+    "dcr:backend": "npm --workspace packages/backend run dev",
+    "dcr:external": "concurrently \"npm run dcr:frontend\" \"npm run dcr:backend\"",
+    "dcr:orchestrator": "npm --workspace packages/orchestrator run srv",
+    "dcr:all": "concurrently \"npm run dcr:external\" \"npm run dcr:orchestrator\""
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
@@ -27,6 +29,8 @@
   "license": "ISC",
   "dependencies": {
     "@tanstack/react-router": "^1.131.27",
-    "@tanstack/router-vite-plugin": "^1.131.27"
+    "@tanstack/router-vite-plugin": "^1.131.27",
+    "cors": "^2.8.5",
+    "zod": "^4.1.12"
   }
 }
