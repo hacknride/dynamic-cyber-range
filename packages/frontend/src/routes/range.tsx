@@ -20,16 +20,16 @@ function Range() {
   const navigate = useNavigate();
 
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [machineCount, setMachineCount] = useState<number>(4);
-  const [linuxCount, setLinuxCount] = useState<number>(2);
-  const [windowsCount, setWindowsCount] = useState<number>(2);
+  const [machineCount, setMachineCount] = useState<string>('4');
+  const [linuxCount, setLinuxCount] = useState<string>('2');
+  const [windowsCount, setWindowsCount] = useState<string>('2');
 
   // ────────────────────────────────────────────────────────────────────────────
   // Helpers
   const buildPayload = (): RangePayload | null => {
-    const mp = Number(machineCount ?? 0);
-    const lc = Number(linuxCount ?? 0);
-    const wc = Number(windowsCount ?? 0);
+    const mp = Number(machineCount || 0);
+    const lc = Number(linuxCount || 0);
+    const wc = Number(windowsCount || 0);
 
     if (!difficulty) {
       alert('Please select a difficulty.');
@@ -96,10 +96,10 @@ function Range() {
   };
 
   const handleReset = () => {
-    setDifficulty('medium');
-    setMachineCount(4);
-    setLinuxCount(2);
-    setWindowsCount(2);
+    setDifficulty('easy');
+    setMachineCount('1');
+    setLinuxCount('0');
+    setWindowsCount('0');
   };
 
   return (
@@ -152,11 +152,19 @@ function Range() {
             <label className={styles.field}>
               <span>Total machines</span>
               <input
-                type="number"
-                min={1}
-                max={20}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={machineCount}
-                onChange={(e) => setMachineCount(Number(e.target.value))}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (/^\d*$/.test(val)) setMachineCount(val);
+                }}
+                onBlur={(e) => {
+                  const num = Number(e.target.value);
+                  if (num < 1) setMachineCount('1');
+                  else if (num > 20) setMachineCount('20');
+                }}
               />
             </label>
           </div>
@@ -167,22 +175,40 @@ function Range() {
             <label className={styles.field}>
               <span>Linux hosts</span>
               <input
-                type="number"
-                min={0}
-                max={machineCount}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={linuxCount}
-                onChange={(e) => setLinuxCount(Number(e.target.value))}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (/^\d*$/.test(val)) setLinuxCount(val);
+                }}
+                onBlur={(e) => {
+                  const num = Number(e.target.value);
+                  const max = Number(machineCount) || 20;
+                  if (num < 0) setLinuxCount('0');
+                  else if (num > max) setLinuxCount(String(max));
+                }}
               />
             </label>
 
             <label className={styles.field}>
               <span>Windows hosts</span>
               <input
-                type="number"
-                min={0}
-                max={machineCount}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={windowsCount}
-                onChange={(e) => setWindowsCount(Number(e.target.value))}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (/^\d*$/.test(val)) setWindowsCount(val);
+                }}
+                onBlur={(e) => {
+                  const num = Number(e.target.value);
+                  const max = Number(machineCount) || 20;
+                  if (num < 0) setWindowsCount('0');
+                  else if (num > max) setWindowsCount(String(max));
+                }}
               />
             </label>
 
@@ -227,12 +253,12 @@ function Range() {
             </div>
             <div className={styles.summaryItem}>
               <span className={styles.summaryLabel}>Machines</span>
-              <span className={styles.summaryValue}>{machineCount}</span>
+              <span className={styles.summaryValue}>{machineCount || 0}</span>
             </div>
             <div className={styles.summaryItem}>
               <span className={styles.summaryLabel}>Linux / Windows / Random</span>
               <span className={styles.summaryValue}>
-                {linuxCount} / {windowsCount} / {Math.max(0, machineCount - (linuxCount + windowsCount))}
+                {linuxCount || 0} / {windowsCount || 0} / {Math.max(0, Number(machineCount || 0) - (Number(linuxCount || 0) + Number(windowsCount || 0)))}
               </span>
             </div>
           </div>
