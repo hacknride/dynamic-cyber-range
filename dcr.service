@@ -1,0 +1,21 @@
+[Unit]
+Description=Dynamic Cyber Range Application
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/opt/dcr-app
+ExecStart=/usr/bin/npm run dcr:prod
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dcr-app
+
+# Environment variables (adjust as needed)
+Environment=NODE_ENV=production
+Environment=PATH=/usr/bin:/usr/local/bin
+
+[Install]
+WantedBy=multi-user.target

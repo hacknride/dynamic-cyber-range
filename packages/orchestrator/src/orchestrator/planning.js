@@ -5,6 +5,7 @@
  */
 
 import { getSaltModulesAndServices } from "./salt.js"; // exports the registry { [scenario]: { services: [...] } }
+import { generateUniqueHostname } from "../utils/hostnames.js";
 
 /**
  * Validates an incoming JSON object's payload to ensure it meets the required structure before provisioning.
@@ -77,6 +78,9 @@ export async function buildPlan(payload) {
 
   const usedMap = Object.create(null); //usedMap[scenario][difficulty] = Set of salt states services already chosen.
 
+  // Plan-local hostname set to guarantee uniqueness within this provisioning run
+  const planHostnames = new Set();
+
   const plan = [];
   for (let m = 0; m < amt; m++) {
     const os = osList[m];
@@ -93,9 +97,11 @@ export async function buildPlan(payload) {
     });
 
     const serviceName = picked.saltState.split("/").pop();
+    // Generate a human-friendly unique hostname (adjective-noun) and ensure uniqueness within this plan
+    const hostname = generateUniqueHostname(planHostnames);
 
     plan.push({
-      hostname: serviceName,
+      hostname,
       scenario: scenarioName,
       service: serviceName,
       saltStates: [picked.saltState],
