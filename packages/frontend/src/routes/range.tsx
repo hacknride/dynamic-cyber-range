@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './range.module.css';
 
 export const Route = createFileRoute('/range')({
@@ -23,6 +23,60 @@ function Range() {
   const [machineCount, setMachineCount] = useState<string>('1');
   const [linuxCount, setLinuxCount] = useState<string>('0');
   const [windowsCount, setWindowsCount] = useState<string>('0');
+  
+  // Track range status based on current job
+  const [rangeStatus, setRangeStatus] = useState<'idle' | 'building' | 'deployed'>('idle');
+  const [loading, setLoading] = useState(true);
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Fetch current job status
+  useEffect(() => {
+    fetchCurrentJob();
+    // Poll for updates every 5 seconds
+    const interval = setInterval(fetchCurrentJob, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchCurrentJob = async () => {
+    try {
+      const res = await fetch('/api/current-job');
+      if (!res.ok) throw new Error('Failed to fetch current job');
+      const data = await res.json();
+      
+      // Map job status to range status
+      if (data.status === 'provisioning') {
+        setRangeStatus('building');
+      } else if (data.status === 'active') {
+        setRangeStatus('deployed');
+      } else if (data.status === 'destroyed' || data.status === 'error' || data.status === 'failed') {
+        setRangeStatus('idle');
+      }
+
+      // Populate form fields from currentJob options if they exist
+      if (data.options) {
+        if (data.options.difficulty) {
+          setDifficulty(data.options.difficulty as 'easy' | 'medium' | 'hard');
+        }
+        if (data.options['amt-machines'] !== undefined) {
+          setMachineCount(String(data.options['amt-machines']));
+        }
+        if (data.options.composition) {
+          if (data.options.composition.linux !== undefined) {
+            setLinuxCount(String(data.options.composition.linux));
+          }
+          if (data.options.composition.windows !== undefined) {
+            setWindowsCount(String(data.options.composition.windows));
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching current job:', err);
+      // On error, assume idle state
+      setRangeStatus('idle');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ────────────────────────────────────────────────────────────────────────────
   // Helpers
@@ -73,6 +127,12 @@ function Range() {
     const payload = buildPayload();
     if (!payload) return;
 
+    // Show confirmation prompt
+    const confirmed = window.confirm(
+      'Are you sure you wish to deploy the range with your current options?'
+    );
+    if (!confirmed) return;
+
     try {
       const res = await fetch('/api/ranges', {
         method: 'POST',
@@ -86,12 +146,40 @@ function Range() {
         throw new Error(msg || `HTTP ${res.status}`);
       }
 
-      const data = await res.json(); // { id, status, machines, config? }
-      // Navigate to the status page for this new range
-      navigate({ to: '/range/$id', params: { id: data.id } });
+      const data = await res.json();
+      // Status will be updated by polling fetchCurrentJob
+      await fetchCurrentJob();
     } catch (err: any) {
       console.error('Error creating range:', err);
       alert(`Error creating range: ${err?.message ?? String(err)}`);
+    }
+  };
+
+  const handleDestroy = async () => {
+    // Show confirmation prompt
+    const confirmed = window.confirm(
+      'Are you sure you want to destroy the range?'
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch('/api/ranges', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const msg = await res.text().catch(() => `HTTP ${res.status}`);
+        throw new Error(msg || `HTTP ${res.status}`);
+      }
+
+      // Status will be updated by polling fetchCurrentJob
+      await fetchCurrentJob();
+      handleReset();
+    } catch (err: any) {
+      console.error('Error destroying range:', err);
+      alert(`Error destroying range: ${err?.message ?? String(err)}`);
     }
   };
 
@@ -101,6 +189,9 @@ function Range() {
     setLinuxCount('0');
     setWindowsCount('0');
   };
+
+  // Determine if controls should be disabled
+  const isDisabled = rangeStatus === 'building' || rangeStatus === 'deployed';
 
   return (
     <div className={styles.container}>
@@ -140,6 +231,7 @@ function Range() {
               <select
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
+                disabled={isDisabled}
               >
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
@@ -163,6 +255,7 @@ function Range() {
                   if (num < 1) setMachineCount('1');
                   else if (num > 5) setMachineCount('5');
                 }}
+                disabled={isDisabled}
               />
             </label>
           </div>
@@ -187,6 +280,7 @@ function Range() {
                   if (num < 0) setLinuxCount('0');
                   else if (num > max) setLinuxCount(String(max));
                 }}
+                disabled={isDisabled}
               />
             </label>
 
@@ -207,6 +301,7 @@ function Range() {
                   if (num < 0) setWindowsCount('0');
                   else if (num > max) setWindowsCount(String(max));
                 }}
+                disabled={isDisabled}
               />
             </label>
 
@@ -221,22 +316,22 @@ function Range() {
 
             {/* These are visual for now. Later, wire to state to set category(s). */}
             <label className={styles.checkboxField}>
-              <input type="checkbox" defaultChecked />
+              <input type="checkbox" defaultChecked disabled={isDisabled} />
               <span>Web application testing</span>
             </label>
 
             <label className={styles.checkboxField}>
-              <input type="checkbox" />
+              <input type="checkbox" disabled={isDisabled} />
               <span>Active Directory / internal network</span>
             </label>
 
             <label className={styles.checkboxField}>
-              <input type="checkbox" />
+              <input type="checkbox" disabled={isDisabled} />
               <span>Cloud / external services</span>
             </label>
 
             <label className={styles.checkboxField}>
-              <input type="checkbox" />
+              <input type="checkbox" disabled={isDisabled} />
               <span>Blue-team / detection focused</span>
             </label>
           </div>
@@ -267,12 +362,32 @@ function Range() {
             Preview config
           </button>
           <div className={styles.actionsRight}>
-            <button className={styles.dangerButton} type="button" onClick={handleReset}>
+            <button 
+              className={styles.dangerButton} 
+              type="button" 
+              onClick={handleReset}
+              disabled={isDisabled}
+            >
               Reset
             </button>
-            <button className={styles.primaryButton} type="button" onClick={handleDeploy}>
-              Deploy range
-            </button>
+            {rangeStatus === 'deployed' ? (
+              <button 
+                className={styles.destroyButton} 
+                type="button" 
+                onClick={handleDestroy}
+              >
+                Destroy Range
+              </button>
+            ) : (
+              <button 
+                className={styles.primaryButton} 
+                type="button" 
+                onClick={handleDeploy}
+                disabled={rangeStatus === 'building'}
+              >
+                {rangeStatus === 'building' ? 'Building...' : 'Deploy range'}
+              </button>
+            )}
           </div>
         </section>
       </main>
