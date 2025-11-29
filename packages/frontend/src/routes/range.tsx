@@ -27,8 +27,17 @@ function Range() {
   // Track range status based on current job
   const [rangeStatus, setRangeStatus] = useState<'idle' | 'building' | 'deployed'>('idle');
   const [loading, setLoading] = useState(true);
+  
+  // Attack focus categories loaded from scenarios
+  const [attackFocusCategories, setAttackFocusCategories] = useState<Array<{ category: string; displayName: string }>>([]);
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
 
   // ────────────────────────────────────────────────────────────────────────────
+  // Fetch scenarios on mount
+  useEffect(() => {
+    fetchScenarios();
+  }, []);
+
   // Fetch current job status
   useEffect(() => {
     fetchCurrentJob();
@@ -36,6 +45,24 @@ function Range() {
     const interval = setInterval(fetchCurrentJob, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  const fetchScenarios = async () => {
+    try {
+      const res = await fetch('/api/scenarios');
+      if (!res.ok) throw new Error('Failed to fetch scenarios');
+      const data = await res.json();
+      setAttackFocusCategories(data.map((cat: any) => ({ 
+        category: cat.category, 
+        displayName: cat.displayName 
+      })));
+      // Default to first category selected
+      if (data.length > 0) {
+        setSelectedCategories(new Set([data[0].category]));
+      }
+    } catch (err) {
+      console.error('Error fetching scenarios:', err);
+    }
+  };
 
   const fetchCurrentJob = async () => {
     try {
@@ -193,6 +220,22 @@ function Range() {
   // Determine if controls should be disabled
   const isDisabled = rangeStatus === 'building' || rangeStatus === 'deployed';
 
+  const toggleCategory = (category: string) => {
+    if (isDisabled) return;
+    setSelectedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        // Keep at least one selected
+        if (next.size > 1) {
+          next.delete(category);
+        }
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className={styles.container}>
       {/* Sidebar navigation */}
@@ -320,26 +363,21 @@ function Range() {
           <div className={styles.card}>
             <h3>Attack Focus</h3>
 
-            {/* These are visual for now. Later, wire to state to set category(s). */}
-            <label className={styles.checkboxField}>
-              <input type="checkbox" defaultChecked disabled={isDisabled} />
-              <span>Web application testing</span>
-            </label>
-
-            <label className={styles.checkboxField}>
-              <input type="checkbox" disabled={isDisabled} />
-              <span>Active Directory / internal network</span>
-            </label>
-
-            <label className={styles.checkboxField}>
-              <input type="checkbox" disabled={isDisabled} />
-              <span>Cloud / external services</span>
-            </label>
-
-            <label className={styles.checkboxField}>
-              <input type="checkbox" disabled={isDisabled} />
-              <span>Blue-team / detection focused</span>
-            </label>
+            {attackFocusCategories.length === 0 ? (
+              <p className={styles.helperText}>Loading attack focus categories...</p>
+            ) : (
+              attackFocusCategories.map((cat) => (
+                <label key={cat.category} className={styles.checkboxField}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedCategories.has(cat.category)}
+                    onChange={() => toggleCategory(cat.category)}
+                    disabled={isDisabled} 
+                  />
+                  <span>{cat.displayName}</span>
+                </label>
+              ))
+            )}
           </div>
         </section>
 
