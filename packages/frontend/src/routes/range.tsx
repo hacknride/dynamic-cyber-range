@@ -19,10 +19,10 @@ type RangePayload = {
 function Range() {
   const navigate = useNavigate();
 
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [machineCount, setMachineCount] = useState<string>('4');
-  const [linuxCount, setLinuxCount] = useState<string>('2');
-  const [windowsCount, setWindowsCount] = useState<string>('2');
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
+  const [machineCount, setMachineCount] = useState<string>('1');
+  const [linuxCount, setLinuxCount] = useState<string>('0');
+  const [windowsCount, setWindowsCount] = useState<string>('0');
 
   // ────────────────────────────────────────────────────────────────────────────
   // Helpers
@@ -118,7 +118,7 @@ function Range() {
         <button className={styles.navButtonActive}>Manage Range</button>
 
         <div className={styles.settingsGroup}>
-          {/* <button className={styles.navButton}>User Settings</button>*/}
+          <button className={styles.navButton}>User Settings</button>
         </div>
       </aside>
 
@@ -161,7 +161,7 @@ function Range() {
                 onBlur={(e) => {
                   const num = Number(e.target.value);
                   if (num < 1) setMachineCount('1');
-                  else if (num > 20) setMachineCount('20');
+                  else if (num > 5) setMachineCount('5');
                 }}
               />
             </label>
@@ -183,7 +183,7 @@ function Range() {
                 }}
                 onBlur={(e) => {
                   const num = Number(e.target.value);
-                  const max = Number(machineCount) || 20;
+                  const max = Math.min(Number(machineCount) || 5, 5);
                   if (num < 0) setLinuxCount('0');
                   else if (num > max) setLinuxCount(String(max));
                 }}
@@ -203,15 +203,12 @@ function Range() {
                 }}
                 onBlur={(e) => {
                   const num = Number(e.target.value);
-                  const max = Number(machineCount) || 20;
+                  const max = Math.min(Number(machineCount) || 5, 5);
                   if (num < 0) setWindowsCount('0');
                   else if (num > max) setWindowsCount(String(max));
                 }}
               />
             </label>
-             <p className={styles.warningText}>
-                 OS limit: Max {machineCount} machines per user
-            </p>
 
             <p className={styles.helperText}>
               The sum of Linux and Windows hosts should not exceed the total machine count.
