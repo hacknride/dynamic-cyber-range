@@ -207,6 +207,12 @@ function Range() {
           Overview
         </button>
         <button className={styles.navButtonActive}>Manage Range</button>
+        <button
+          className={styles.navButton}
+          onClick={() => navigate({ to: '/scenarios' })}
+        >
+          Scenarios
+        </button>
 
         <div className={styles.settingsGroup}>
           <button className={styles.navButton}>User Settings</button>

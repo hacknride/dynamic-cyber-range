@@ -26,6 +26,20 @@ app.use("/api/ranges", rangesRouter);
 // Mount current job API
 app.use("/api/current-job", currentJobRouter);
 
+// Proxy scenarios endpoint to orchestrator
+app.get("/api/scenarios", async (req, res) => {
+  try {
+    const orchUrl = process.env.ORCHESTRATOR_URL || "http://localhost:8080";
+    const response = await fetch(`${orchUrl}/scenarios`);
+    if (!response.ok) throw new Error(`Orchestrator returned ${response.status}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error("Error fetching scenarios:", err);
+    res.status(500).json({ error: "Failed to fetch scenarios from orchestrator" });
+  }
+});
+
 app.listen(6247, () => {
   console.log("Server is running on http://localhost:6247");
 });

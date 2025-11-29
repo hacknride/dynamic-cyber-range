@@ -16,6 +16,7 @@ import reportWebVitals from './reportWebVitals.js'
 
 import App from './App'
 import RangePage from './routes/range'
+import ScenariosPage from './routes/scenarios'
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -37,7 +38,13 @@ const rangeRoute = createRoute({
   component: RangePage,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, rangeRoute])
+const scenariosRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/scenarios',
+  component: ScenariosPage,
+})
+
+const routeTree = rootRoute.addChildren([indexRoute, rangeRoute, scenariosRoute])
 
 const router = createRouter({
   routeTree,
