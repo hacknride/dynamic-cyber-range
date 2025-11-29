@@ -106,6 +106,7 @@ export async function buildPlan(payload) {
       service: serviceName,
       saltStates: [picked.saltState],
       vars: { [serviceName]: picked.vars },
+      givens: picked.givens,
       os,
       ip: "<awaiting-terraform>"
     });
@@ -237,6 +238,7 @@ function normalizeRegistry(raw) {
       const os = typeof meta?.os === "string" ? meta.os.toLowerCase() : undefined;
       const difficulty = typeof meta?.difficulty === "string" ? meta.difficulty.toLowerCase() : undefined;
       const vars = (meta?.vars && typeof meta.vars === "object") ? meta.vars : {};
+      const givens = (meta?.givens && typeof meta.givens === "object") ? meta.givens : null;
       const weights = { easy: 1, medium: 1, hard: 1 };
       if (difficulty && ["easy","medium","hard"].includes(difficulty)) weights[difficulty] = 3;
 
@@ -246,6 +248,7 @@ function normalizeRegistry(raw) {
         os,
         difficulty,
         vars,
+        givens,
         weights
       });
     }

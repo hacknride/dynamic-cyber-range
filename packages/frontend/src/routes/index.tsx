@@ -30,6 +30,11 @@ type Machine = {
   ip: string;
   saltStates?: string[];
   vars?: Record<string, any>;
+  givens?: {
+    user?: string;
+    password?: string;
+    [key: string]: any;
+  } | null;
 };
 
 type CurrentJob = {
@@ -64,6 +69,7 @@ function Landing() {
     const [currentJob, setCurrentJob] = useState<CurrentJob | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showCredentials, setShowCredentials] = useState<string | null>(null);
 
     useEffect(() => {
         fetchCurrentJob();
@@ -231,7 +237,111 @@ function Landing() {
                             <div key={idx} className={styles.machineBlock}>
                                 <h4>{machine.hostname} ({machine.ip})</h4>
                                 <p>{machine.os}</p>
-                                <p>Service: {machine.service}</p>
+                                {machine.givens && (
+                                    <>
+                                        <button
+                                            onClick={() => setShowCredentials(showCredentials === machine.hostname ? null : machine.hostname)}
+                                            style={{
+                                                marginTop: '0.5rem',
+                                                padding: '0.5rem 1rem',
+                                                backgroundColor: '#1e3a5f',
+                                                color: '#f5f7fa',
+                                                border: '1px solid #2a5a8f',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.9rem',
+                                                fontWeight: '500'
+                                            }}
+                                        >
+                                            {showCredentials === machine.hostname ? 'Hide Credentials' : 'Show Credentials'}
+                                        </button>
+                                        {showCredentials === machine.hostname && (
+                                            <>
+                                                <div
+                                                    onClick={() => setShowCredentials(null)}
+                                                    style={{
+                                                        position: 'fixed',
+                                                        top: 0,
+                                                        left: 0,
+                                                        right: 0,
+                                                        bottom: 0,
+                                                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                                        zIndex: 999
+                                                    }}
+                                                />
+                                                <div style={{
+                                                    position: 'fixed',
+                                                    top: '50%',
+                                                    left: '50%',
+                                                    transform: 'translate(-50%, -50%)',
+                                                    backgroundColor: '#0a1628',
+                                                    padding: '2rem',
+                                                    borderRadius: '8px',
+                                                    border: '1px solid #2a5a8f',
+                                                    zIndex: 1000,
+                                                    minWidth: '300px',
+                                                    maxWidth: '500px',
+                                                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)'
+                                                }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                                        <strong style={{ color: '#f5f7fa', fontSize: '1.2rem' }}>Credentials - {machine.hostname}</strong>
+                                                        <button
+                                                            onClick={() => setShowCredentials(null)}
+                                                            style={{
+                                                                backgroundColor: 'transparent',
+                                                                border: 'none',
+                                                                color: '#f5f7fa',
+                                                                fontSize: '1.5rem',
+                                                                cursor: 'pointer',
+                                                                padding: '0',
+                                                                lineHeight: '1',
+                                                                opacity: 0.7
+                                                            }}
+                                                            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                                                            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                    {machine.givens.user && (
+                                                        <div style={{ marginBottom: '1rem' }}>
+                                                            <strong style={{ color: '#f5f7fa' }}>Username:</strong>
+                                                            <div style={{
+                                                                marginTop: '0.25rem',
+                                                                backgroundColor: '#0d1117',
+                                                                padding: '0.5rem',
+                                                                borderRadius: '4px',
+                                                                fontFamily: 'monospace',
+                                                                fontSize: '1rem',
+                                                                color: '#f5f7fa',
+                                                                wordBreak: 'break-all'
+                                                            }}>
+                                                                {machine.givens.user}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {machine.givens.password && (
+                                                        <div>
+                                                            <strong style={{ color: '#f5f7fa' }}>Password:</strong>
+                                                            <div style={{
+                                                                marginTop: '0.25rem',
+                                                                backgroundColor: '#0d1117',
+                                                                padding: '0.5rem',
+                                                                borderRadius: '4px',
+                                                                fontFamily: 'monospace',
+                                                                fontSize: '1rem',
+                                                                color: '#f5f7fa',
+                                                                wordBreak: 'break-all'
+                                                            }}>
+                                                                {machine.givens.password}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         ))
                     ) : (

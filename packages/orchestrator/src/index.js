@@ -93,7 +93,8 @@ app.get("/scenarios", async (req, res) => {
             name: service.name,
             os: metadata.os || "unknown",
             difficulty: metadata.difficulty || "medium",
-            vars: metadata.vars || {}
+            vars: metadata.vars || {},
+            givens: metadata.givens || null
           });
         } catch (err) {
           // If service.yaml doesn't exist or can't be parsed, skip or use defaults
@@ -101,7 +102,8 @@ app.get("/scenarios", async (req, res) => {
             name: service.name,
             os: "unknown",
             difficulty: "medium",
-            vars: {}
+            vars: {},
+            givens: null
           });
         }
       }

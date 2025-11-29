@@ -1,0 +1,8 @@
+os: linux
+difficulty: easy
+vars:
+  version: "3.5"
+  secure-root-pass: true
+givens:
+  user: "ubuntu"
+  password: "secure-password-123"
