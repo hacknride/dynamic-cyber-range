@@ -10,7 +10,9 @@ const asBool = z.union([z.boolean(), z.string()]).transform((v) =>
 const incomingSchema = z.object({
   difficulty: z.enum(["easy", "medium", "hard"]),
   machinesPresent: asInt.pipe(z.number().int().min(1).max(10)),
-  category: z.string().min(1),
+  category: z.union([z.string(), z.array(z.string())]).transform(val => 
+    Array.isArray(val) ? val : [val]
+  ),
   windowsCount: asInt.pipe(z.number().int().min(0)),
   linuxCount: asInt.pipe(z.number().int().min(0)),
   randomCount: asInt.pipe(z.number().int().min(0)),
@@ -19,19 +21,30 @@ const incomingSchema = z.object({
 
 function buildRangeConfig(userId, data) {
   const rangeId = `range-${Date.now()}`;
+  
+  // Transform frontend payload to orchestrator format
+  // category is now an array of attack-focus categories
+  const scenarios = data.category.map(cat => ({
+    name: cat,
+    vars: {}
+  }));
+  
   return {
-    id: rangeId,
-    difficulty: data.difficulty,
-    machinesPresent: data.machinesPresent,
-    category: data.category,
-    composition: {
-      windows: data.windowsCount,
-      linux: data.linuxCount,
-      random: data.randomCount,
+    options: {
+      difficulty: data.difficulty,
+      "amt-machines": data.machinesPresent,
+      composition: {
+        windows: data.windowsCount,
+        linux: data.linuxCount,
+        random: data.randomCount,
+      },
     },
-    segmentation: data.segmentation,
-    createdByUserId: userId,
-    createdAt: new Date().toISOString(),
+    scenarios,
+    metadata: {
+      id: rangeId,
+      createdByUserId: userId,
+      createdAt: new Date().toISOString(),
+    },
   };
 }
 
@@ -72,6 +85,29 @@ router.get("/:id", async (req, res) => {
     status: "active",
     machines: [{ id: `${id}-lin-1`, name: "lin-1", ipAddress: "10.0.0.11" }],
   });
+});
+
+router.delete("/", async (req, res) => {
+  try {
+    const orchUrl = process.env.ORCHESTRATOR_URL || "http://localhost:8080";
+    const response = await fetch(`${orchUrl}/range/destroy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ force: false }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Orchestrator destroy error:", errorText);
+      return res.status(response.status).json({ error: errorText || "Failed to destroy range" });
+    }
+
+    const result = await response.json();
+    return res.json(result);
+  } catch (e) {
+    console.error("Error destroying range:", e);
+    return res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 export default router;

@@ -7,6 +7,13 @@
 
 import express from "express";
 import { startOrchestration, getStatus, cancel, destroyRange, recoverIfNeeded } from "./orchestrator/orchestrator.js";
+import { readdir } from "fs/promises";
+import { join } from "path";
+import { fileURLToPath } from "url";
+import jsYaml from "js-yaml";
+import { readFile } from "fs/promises";
+
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = process.env.PORT || 8080;
 
 const app = express();
@@ -52,6 +59,65 @@ app.post("/range/cancel", (req, res) => {
   const r = cancel();
   if (!r.ok) return res.status(r.code || 400).json(r);
   return res.json(r);
+});
+
+/**
+ * Lists all available scenarios grouped by attack focus category.
+ */
+app.get("/scenarios", async (req, res) => {
+  try {
+    const scenariosPath = join(__dirname, "../scenarios");
+    const categories = await readdir(scenariosPath, { withFileTypes: true });
+    
+    const result = [];
+    
+    for (const category of categories) {
+      if (!category.isDirectory()) continue;
+      
+      const categoryPath = join(scenariosPath, category.name);
+      const services = await readdir(categoryPath, { withFileTypes: true });
+      
+      const scenarios = [];
+      
+      for (const service of services) {
+        if (!service.isDirectory()) continue;
+        
+        const servicePath = join(categoryPath, service.name);
+        const serviceYamlPath = join(servicePath, "service.yaml");
+        
+        try {
+          const yamlContent = await readFile(serviceYamlPath, "utf-8");
+          const metadata = jsYaml.load(yamlContent);
+          
+          scenarios.push({
+            name: service.name,
+            os: metadata.os || "unknown",
+            difficulty: metadata.difficulty || "medium",
+            vars: metadata.vars || {}
+          });
+        } catch (err) {
+          // If service.yaml doesn't exist or can't be parsed, skip or use defaults
+          scenarios.push({
+            name: service.name,
+            os: "unknown",
+            difficulty: "medium",
+            vars: {}
+          });
+        }
+      }
+      
+      result.push({
+        category: category.name,
+        displayName: category.name.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+        scenarios
+      });
+    }
+    
+    res.json(result);
+  } catch (err) {
+    console.error("Error reading scenarios:", err);
+    res.status(500).json({ error: "Failed to read scenarios" });
+  }
 });
 
 app.listen(PORT, () => {

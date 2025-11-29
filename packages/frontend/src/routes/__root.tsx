@@ -41,6 +41,6 @@ export const Route = createRootRoute({
                 {/* Navigate can go here if it's universal */}
             </div>
             <Outlet /> {/* This is where child routes will be rendered */}
-        </>
-    ),
+       </>
+   ),
 })
