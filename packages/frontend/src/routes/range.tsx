@@ -9,7 +9,7 @@ export const Route = createFileRoute('/range')({
 type RangePayload = {
   difficulty: 'easy' | 'medium' | 'hard';
   machinesPresent: number;
-  category: string;         // TEMP: fixed until you wire checkboxes
+  category: string[];       // Array of selected attack-focus categories
   windowsCount: number;
   linuxCount: number;
   randomCount: number;
@@ -25,7 +25,7 @@ function Range() {
   const [windowsCount, setWindowsCount] = useState<string>('0');
   
   // Track range status based on current job
-  const [rangeStatus, setRangeStatus] = useState<'idle' | 'building' | 'deployed'>('idle');
+  const [rangeStatus, setRangeStatus] = useState<'idle' | 'building' | 'deployed' | 'destroying'>('idle');
   const [loading, setLoading] = useState(true);
   
   // Attack focus categories loaded from scenarios
@@ -71,16 +71,20 @@ function Range() {
       const data = await res.json();
       
       // Map job status to range status
-      if (data.status === 'provisioning') {
+      const status = data?.status?.toLowerCase();
+      if (status === 'provisioning' || status === 'building' || status === 'deploying') {
         setRangeStatus('building');
-      } else if (data.status === 'active') {
+      } else if (status === 'destroying') {
+        setRangeStatus('destroying');
+      } else if (status === 'active' || status === 'deployed') {
         setRangeStatus('deployed');
-      } else if (data.status === 'destroyed' || data.status === 'error' || data.status === 'failed') {
+      } else if (status === 'destroyed' || status === 'error' || status === 'failed' || status === 'idle') {
         setRangeStatus('idle');
       }
 
-      // Populate form fields from currentJob options if they exist
-      if (data.options) {
+      // Populate form fields from currentJob options ONLY when building/deployed
+      // Don't overwrite user input when idle
+      if ((data.status === 'provisioning' || data.status === 'active') && data.options) {
         if (data.options.difficulty) {
           setDifficulty(data.options.difficulty as 'easy' | 'medium' | 'hard');
         }
@@ -131,10 +135,13 @@ function Range() {
 
     const rc = mp - (lc + wc); // fill the rest as "random"
 
+    // Convert selectedCategories Set to array
+    const categoryArray = Array.from(selectedCategories);
+    
     const payload: RangePayload = {
       difficulty,
       machinesPresent: mp,
-      category: 'web-app-exploits', // TODO: derive from the checkboxes later
+      category: categoryArray.length > 0 ? categoryArray : ['web-exploits'], // Use actual folder name
       windowsCount: wc,
       linuxCount: lc,
       randomCount: rc,
@@ -147,7 +154,19 @@ function Range() {
   const handlePreview = () => {
     const payload = buildPayload();
     if (!payload) return;
-    alert('Payload to be sent:\n\n' + JSON.stringify(payload, null, 2));
+    
+    // Show the exact payload that will be sent to /api/ranges
+    const categoryArray = Array.from(selectedCategories);
+    const previewData = {
+      difficulty: payload.difficulty,
+      machinesPresent: payload.machinesPresent,
+      category: categoryArray.length > 0 ? categoryArray : ['web-exploits'],
+      windowsCount: payload.windowsCount,
+      linuxCount: payload.linuxCount,
+      randomCount: payload.randomCount,
+    };
+    
+    alert('Payload to be sent to /api/ranges:\n\n' + JSON.stringify(previewData, null, 2));
   };
 
   const handleDeploy = async () => {
@@ -217,8 +236,8 @@ function Range() {
     setWindowsCount('0');
   };
 
-  // Determine if controls should be disabled
-  const isDisabled = rangeStatus === 'building' || rangeStatus === 'deployed';
+  // Determine if controls should be disabled (only editable when idle/destroyed)
+  const isDisabled = rangeStatus === 'building' || rangeStatus === 'deployed' || rangeStatus === 'destroying';
 
   const toggleCategory = (category: string) => {
     if (isDisabled) return;
@@ -414,13 +433,14 @@ function Range() {
             >
               Reset
             </button>
-            {rangeStatus === 'deployed' ? (
+            {rangeStatus === 'deployed' || rangeStatus === 'destroying' ? (
               <button 
                 className={styles.destroyButton} 
                 type="button" 
                 onClick={handleDestroy}
+                disabled={rangeStatus === 'destroying'}
               >
-                Destroy Range
+                {rangeStatus === 'destroying' ? 'Destroying...' : 'Destroy Range'}
               </button>
             ) : (
               <button 
