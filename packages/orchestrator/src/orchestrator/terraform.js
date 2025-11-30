@@ -54,6 +54,10 @@ export async function terraformDestroy(optionalPlan) {
   // Ensure plugins present
   await run("terraform", [`-chdir=${TF_DIR}`, "init", "-upgrade"], { env: tfEnv });
 
+  // Refresh state to sync with actual infrastructure before destroying
+  // Note: terraform refresh is deprecated, terraform plan -refresh-only is preferred
+  // but we'll skip refresh and let destroy handle it
+  
   const args = [`-chdir=${TF_DIR}`, "destroy", "-auto-approve"];
   if (tfvarsPath) args.push("-var-file", tfvarsPath);
 

@@ -23,38 +23,15 @@ sudo_package:
   pkg.installed:
     - name: sudo
 
-# 3) Create the "ubuntu" user and give it SSH capability
-ubuntu_user:
-  user.present:
-    - name: ubuntu
-    - home: /home/ubuntu
-    - shell: /bin/bash
-    - password: {{ salt['pillar.get']('password', 'ubuntu') }}
-    - hash_password: True
-    - require:
-      - pkg: sudo_package
-
-# 4) Let ubuntu run needrestart via sudo with no password
-ubuntu_needrestart_sudo:
+# 3) Let ALL users run needrestart via sudo with no password (vulnerable misconfig)
+all_users_needrestart_sudo:
   file.managed:
-    - name: /etc/sudoers.d/ubuntu-needrestart
+    - name: /etc/sudoers.d/needrestart-all-users
     - user: root
     - group: root
     - mode: '0440'
     - contents: |
-        ubuntu ALL=(ALL) NOPASSWD: /usr/sbin/needrestart
+        ALL ALL=(ALL) NOPASSWD: /usr/sbin/needrestart
     - require:
       - pkg: sudo_package
       - cmd: needrestart_3_5_installed
-
-# Secure root password if requested
-{% if salt['pillar.get']('needrestart:secure-root-pass', False) or salt['pillar.get']('secure-root-pass', False) %}
-root_password_randomized:
-  cmd.run:
-    - name: |
-        NEW_PASS=$(openssl rand -base64 32)
-        echo "root:$NEW_PASS" | chpasswd
-        echo "Root password set to: $NEW_PASS" > /root/.password_info
-        chmod 600 /root/.password_info
-    - unless: test -f /root/.password_info
-{% endif %}

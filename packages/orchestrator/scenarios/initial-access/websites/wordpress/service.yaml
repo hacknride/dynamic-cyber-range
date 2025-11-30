@@ -1,4 +1,5 @@
 os: linux
 difficulty: easy
 vars:
+  secure-root-pass: true
   version: "6.4"

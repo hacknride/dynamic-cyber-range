@@ -13,18 +13,25 @@ type Scenario = {
   vars: Record<string, any>;
 };
 
-type Category = {
-  category: string;
+type Subcategory = {
+  name: string;
   displayName: string;
   scenarios: Scenario[];
 };
 
+type Stage = {
+  stage: string;
+  displayName: string;
+  subcategories: Subcategory[];
+};
+
 function ScenariosPage() {
   const navigate = useNavigate();
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
+  const [expandedSubcategories, setExpandedSubcategories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchScenarios();
@@ -35,9 +42,14 @@ function ScenariosPage() {
       const res = await fetch('/api/scenarios');
       if (!res.ok) throw new Error('Failed to fetch scenarios');
       const data = await res.json();
-      setCategories(data);
-      // Expand all categories by default
-      setExpandedCategories(new Set(data.map((c: Category) => c.category)));
+      setStages(data);
+      // Stages are always expanded (not collapsible)
+      setExpandedStages(new Set(data.map((s: Stage) => s.stage)));
+      // Expand all subcategories by default
+      const allSubcats = data.flatMap((s: Stage) => 
+        s.subcategories?.map((sub: Subcategory) => `${s.stage}/${sub.name}`) || []
+      );
+      setExpandedSubcategories(new Set(allSubcats));
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -46,13 +58,13 @@ function ScenariosPage() {
     }
   };
 
-  const toggleCategory = (category: string) => {
-    setExpandedCategories((prev) => {
+  const toggleSubcategory = (key: string) => {
+    setExpandedSubcategories((prev) => {
       const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
+      if (next.has(key)) {
+        next.delete(key);
       } else {
-        next.add(category);
+        next.add(key);
       }
       return next;
     });
@@ -89,8 +101,8 @@ function ScenariosPage() {
         <header className={styles.header}>
           <h2>Available Scenarios</h2>
           <p>
-            Browse all available scenarios organized by attack focus. Each scenario includes
-            specific configurations and vulnerabilities for training purposes.
+            Browse all available scenarios organized by attack stages. Each stage contains categories
+            with specific vulnerabilities and configurations for training purposes.
           </p>
         </header>
 
@@ -102,55 +114,70 @@ function ScenariosPage() {
           </div>
         )}
 
-        {!loading && !error && categories.length === 0 && (
+        {!loading && !error && stages.length === 0 && (
           <p>No scenarios found.</p>
         )}
 
-        {!loading && !error && categories.length > 0 && (
+        {!loading && !error && stages.length > 0 && (
           <div className={styles.categoriesContainer}>
-            {categories.map((cat) => (
-              <div key={cat.category} className={styles.categoryCard}>
-                <div
-                  className={styles.categoryHeader}
-                  onClick={() => toggleCategory(cat.category)}
-                >
-                  <h3>{cat.displayName}</h3>
-                  <span className={styles.expandIcon}>
-                    {expandedCategories.has(cat.category) ? '▼' : '▶'}
-                  </span>
+            {stages.map((stage) => (
+              <div key={stage.stage} className={styles.stageCard}>
+                <div className={styles.stageHeader}>
+                  <h2>{stage.displayName}</h2>
                 </div>
 
-                {expandedCategories.has(cat.category) && (
-                  <div className={styles.scenariosList}>
-                    {cat.scenarios.length === 0 ? (
-                      <p className={styles.emptyText}>No scenarios in this category</p>
-                    ) : (
-                      cat.scenarios.map((scenario) => (
-                        <div key={scenario.name} className={styles.scenarioItem}>
-                          <div className={styles.scenarioHeader}>
-                            <span className={styles.scenarioName}>
-                              {scenario.os === 'linux' ? '🐧' : scenario.os === 'windows' ? '🪟' : '💻'}{' '}
-                              {scenario.name.charAt(0).toUpperCase() + scenario.name.slice(1)}
-                            </span>
-                            <span className={styles.difficultyBadge} data-difficulty={scenario.difficulty}>
-                              {scenario.difficulty}
+                {stage.subcategories && (
+                  <div className={styles.subcategoriesContainer}>
+                    {stage.subcategories.map((subcat) => {
+                      const subcatKey = `${stage.stage}/${subcat.name}`;
+                      return (
+                        <div key={subcatKey} className={styles.categoryCard}>
+                          <div
+                            className={styles.categoryHeader}
+                            onClick={() => toggleSubcategory(subcatKey)}
+                          >
+                            <h3>{subcat.displayName}</h3>
+                            <span className={styles.expandIcon}>
+                              {expandedSubcategories.has(subcatKey) ? '▼' : '▶'}
                             </span>
                           </div>
-                          {Object.keys(scenario.vars).length > 0 && (
-                            <div className={styles.scenarioVars}>
-                              <small>Variables:</small>
-                              <ul>
-                                {Object.entries(scenario.vars).map(([key, value]) => (
-                                  <li key={key}>
-                                    <code>{key}</code>: {String(value)}
-                                  </li>
-                                ))}
-                              </ul>
+
+                          {expandedSubcategories.has(subcatKey) && (
+                            <div className={styles.scenariosList}>
+                              {subcat.scenarios.length === 0 ? (
+                                <p className={styles.emptyText}>No scenarios in this category</p>
+                              ) : (
+                                subcat.scenarios.map((scenario) => (
+                                  <div key={scenario.name} className={styles.scenarioItem}>
+                                    <div className={styles.scenarioHeader}>
+                                      <span className={styles.scenarioName}>
+                                        {scenario.os === 'linux' ? '🐧' : scenario.os === 'windows' ? '🪟' : '💻'}{' '}
+                                        {scenario.name.charAt(0).toUpperCase() + scenario.name.slice(1)}
+                                      </span>
+                                      <span className={styles.difficultyBadge} data-difficulty={scenario.difficulty}>
+                                        {scenario.difficulty}
+                                      </span>
+                                    </div>
+                                    {Object.keys(scenario.vars).length > 0 && (
+                                      <div className={styles.scenarioVars}>
+                                        <small>Variables:</small>
+                                        <ul>
+                                          {Object.entries(scenario.vars).map(([key, value]) => (
+                                            <li key={key}>
+                                              <code>{key}</code>: {String(value)}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))
+                              )}
                             </div>
                           )}
                         </div>
-                      ))
-                    )}
+                      );
+                    })}
                   </div>
                 )}
               </div>

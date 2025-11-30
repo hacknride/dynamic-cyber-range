@@ -1,0 +1,4 @@
+os: linux
+difficulty: easy
+vars:
+  secure-root-pass: true

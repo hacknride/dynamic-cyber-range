@@ -453,6 +453,17 @@ function deriveKeys(p) {
   if (fileName !== "service.yaml") return null;
 
   const service = parts.at(-2);
+  
+  // Handle three-level hierarchy: stage/subcategory/service/service.yaml
+  // For example: initial-access/databases/default-database/service.yaml
+  if (parts.length >= 4) {
+    const stage = parts.at(-4);        // e.g., "initial-access"
+    const subcategory = parts.at(-3);  // e.g., "databases"
+    const scenario = `${stage}/${subcategory}`;
+    return { scenario, service };
+  }
+  
+  // Fallback for two-level: scenario/service/service.yaml
   const scenario = parts.at(-3) || "uncategorized";
   return { scenario, service };
 }

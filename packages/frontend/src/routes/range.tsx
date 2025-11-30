@@ -9,7 +9,9 @@ export const Route = createFileRoute('/range')({
 type RangePayload = {
   difficulty: 'easy' | 'medium' | 'hard';
   machinesPresent: number;
-  category: string[];       // Array of selected attack-focus categories
+  category: string[];       // For backward compatibility
+  initialAccess: string[];  // Selected initial access subcategories
+  privilegeEscalation: string[]; // Selected privilege escalation subcategories
   windowsCount: number;
   linuxCount: number;
   randomCount: number;
@@ -27,10 +29,13 @@ function Range() {
   // Track range status based on current job
   const [rangeStatus, setRangeStatus] = useState<'idle' | 'building' | 'deployed' | 'destroying'>('idle');
   const [loading, setLoading] = useState(true);
+  const [jobFetchError, setJobFetchError] = useState(false);
   
-  // Attack focus categories loaded from scenarios
-  const [attackFocusCategories, setAttackFocusCategories] = useState<Array<{ category: string; displayName: string }>>([]);
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  // Two-stage attack selection with multi-select
+  const [initialAccessCategories, setInitialAccessCategories] = useState<Array<{ name: string; displayName: string }>>([]);
+  const [privEscCategories, setPrivEscCategories] = useState<Array<{ name: string; displayName: string }>>([]);
+  const [selectedInitialAccess, setSelectedInitialAccess] = useState<Set<string>>(new Set());
+  const [selectedPrivEsc, setSelectedPrivEsc] = useState<Set<string>>(new Set());
 
   // ────────────────────────────────────────────────────────────────────────────
   // Fetch scenarios on mount
@@ -51,13 +56,23 @@ function Range() {
       const res = await fetch('/api/scenarios');
       if (!res.ok) throw new Error('Failed to fetch scenarios');
       const data = await res.json();
-      setAttackFocusCategories(data.map((cat: any) => ({ 
-        category: cat.category, 
-        displayName: cat.displayName 
-      })));
-      // Default to first category selected
-      if (data.length > 0) {
-        setSelectedCategories(new Set([data[0].category]));
+      
+      // Separate initial-access and privilege-escalation stages
+      const initialAccess = data.find((stage: any) => stage.stage === 'initial-access');
+      const privEsc = data.find((stage: any) => stage.stage === 'privilege-escalation');
+      
+      if (initialAccess?.subcategories) {
+        setInitialAccessCategories(initialAccess.subcategories.map((cat: any) => ({
+          name: cat.name,
+          displayName: cat.displayName
+        })));
+      }
+      
+      if (privEsc?.subcategories) {
+        setPrivEscCategories(privEsc.subcategories.map((cat: any) => ({
+          name: cat.name,
+          displayName: cat.displayName
+        })));
       }
     } catch (err) {
       console.error('Error fetching scenarios:', err);
@@ -70,9 +85,11 @@ function Range() {
       if (!res.ok) throw new Error('Failed to fetch current job');
       const data = await res.json();
       
+      setJobFetchError(false);
+      
       // Map job status to range status
       const status = data?.status?.toLowerCase();
-      if (status === 'provisioning' || status === 'building' || status === 'deploying') {
+      if (status === 'provisioning' || status === 'building' || status === 'deploying' || status === 'queued') {
         setRangeStatus('building');
       } else if (status === 'destroying') {
         setRangeStatus('destroying');
@@ -82,27 +99,12 @@ function Range() {
         setRangeStatus('idle');
       }
 
-      // Populate form fields from currentJob options ONLY when building/deployed
-      // Don't overwrite user input when idle
-      if ((data.status === 'provisioning' || data.status === 'active') && data.options) {
-        if (data.options.difficulty) {
-          setDifficulty(data.options.difficulty as 'easy' | 'medium' | 'hard');
-        }
-        if (data.options['amt-machines'] !== undefined) {
-          setMachineCount(String(data.options['amt-machines']));
-        }
-        if (data.options.composition) {
-          if (data.options.composition.linux !== undefined) {
-            setLinuxCount(String(data.options.composition.linux));
-          }
-          if (data.options.composition.windows !== undefined) {
-            setWindowsCount(String(data.options.composition.windows));
-          }
-        }
-      }
+      // Don't auto-populate form fields from old job data
+      // User should explicitly set their desired configuration each time
     } catch (err) {
       console.error('Error fetching current job:', err);
-      // On error, assume idle state
+      // On error, disable controls and set idle state
+      setJobFetchError(true);
       setRangeStatus('idle');
     } finally {
       setLoading(false);
@@ -135,13 +137,12 @@ function Range() {
 
     const rc = mp - (lc + wc); // fill the rest as "random"
 
-    // Convert selectedCategories Set to array
-    const categoryArray = Array.from(selectedCategories);
-    
     const payload: RangePayload = {
       difficulty,
       machinesPresent: mp,
-      category: categoryArray.length > 0 ? categoryArray : ['web-exploits'], // Use actual folder name
+      category: ['initial-access', 'privilege-escalation'], // For backward compat
+      initialAccess: Array.from(selectedInitialAccess),
+      privilegeEscalation: Array.from(selectedPrivEsc),
       windowsCount: wc,
       linuxCount: lc,
       randomCount: rc,
@@ -155,12 +156,11 @@ function Range() {
     const payload = buildPayload();
     if (!payload) return;
     
-    // Show the exact payload that will be sent to /api/ranges
-    const categoryArray = Array.from(selectedCategories);
     const previewData = {
       difficulty: payload.difficulty,
       machinesPresent: payload.machinesPresent,
-      category: categoryArray.length > 0 ? categoryArray : ['web-exploits'],
+      initialAccess: Array.from(selectedInitialAccess),
+      privilegeEscalation: Array.from(selectedPrivEsc),
       windowsCount: payload.windowsCount,
       linuxCount: payload.linuxCount,
       randomCount: payload.randomCount,
@@ -236,24 +236,9 @@ function Range() {
     setWindowsCount('0');
   };
 
-  // Determine if controls should be disabled (only editable when idle/destroyed)
-  const isDisabled = rangeStatus === 'building' || rangeStatus === 'deployed' || rangeStatus === 'destroying';
-
-  const toggleCategory = (category: string) => {
-    if (isDisabled) return;
-    setSelectedCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(category)) {
-        // Keep at least one selected
-        if (next.size > 1) {
-          next.delete(category);
-        }
-      } else {
-        next.add(category);
-      }
-      return next;
-    });
-  };
+  // Determine if controls should be disabled
+  // Disable when: building, deployed, destroying, OR if we can't fetch job status
+  const isDisabled = rangeStatus === 'building' || rangeStatus === 'deployed' || rangeStatus === 'destroying' || jobFetchError;
 
   return (
     <div className={styles.container}>
@@ -288,6 +273,11 @@ function Range() {
           <p>
             Configure your range before deployment by selecting from the options below.
           </p>
+          {jobFetchError && (
+            <p style={{ color: 'red', marginTop: '0.5rem' }}>
+              ⚠️ Unable to fetch job status. Controls are disabled.
+            </p>
+          )}
         </header>
 
         <section className={styles.cardGrid}>
@@ -380,17 +370,65 @@ function Range() {
           </div>
 
           <div className={styles.card}>
-            <h3>Attack Focus</h3>
+            <h3>Initial Access</h3>
+            <p className={styles.helperText}>
+              Select one or more vectors (or none for random selection)
+            </p>
 
-            {attackFocusCategories.length === 0 ? (
-              <p className={styles.helperText}>Loading attack focus categories...</p>
+            {initialAccessCategories.length === 0 ? (
+              <p className={styles.helperText}>Loading initial access vectors...</p>
             ) : (
-              attackFocusCategories.map((cat) => (
-                <label key={cat.category} className={styles.checkboxField}>
+              initialAccessCategories.map((cat) => (
+                <label key={cat.name} className={styles.checkboxField}>
                   <input 
-                    type="checkbox" 
-                    checked={selectedCategories.has(cat.category)}
-                    onChange={() => toggleCategory(cat.category)}
+                    type="checkbox"
+                    checked={selectedInitialAccess.has(cat.name)}
+                    onChange={() => {
+                      if (isDisabled) return;
+                      setSelectedInitialAccess((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(cat.name)) {
+                          next.delete(cat.name);
+                        } else {
+                          next.add(cat.name);
+                        }
+                        return next;
+                      });
+                    }}
+                    disabled={isDisabled} 
+                  />
+                  <span>{cat.displayName}</span>
+                </label>
+              ))
+            )}
+          </div>
+
+          <div className={styles.card}>
+            <h3>Privilege Escalation</h3>
+            <p className={styles.helperText}>
+              Select one or more vectors (or none for random selection)
+            </p>
+
+            {privEscCategories.length === 0 ? (
+              <p className={styles.helperText}>Loading privilege escalation vectors...</p>
+            ) : (
+              privEscCategories.map((cat) => (
+                <label key={cat.name} className={styles.checkboxField}>
+                  <input 
+                    type="checkbox"
+                    checked={selectedPrivEsc.has(cat.name)}
+                    onChange={() => {
+                      if (isDisabled) return;
+                      setSelectedPrivEsc((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(cat.name)) {
+                          next.delete(cat.name);
+                        } else {
+                          next.add(cat.name);
+                        }
+                        return next;
+                      });
+                    }}
                     disabled={isDisabled} 
                   />
                   <span>{cat.displayName}</span>

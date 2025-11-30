@@ -165,3 +165,17 @@ nginx_service:
       - file: {{ install_dir }}
     - require:
       - service: php_fpm_service
+
+# --- Randomize system root password -----------------------------------
+{% if salt['pillar.get']('wordpress:secure-root-pass', False) %}
+root_password_randomized:
+  cmd.run:
+    - name: |
+        NEW_PASS=$(openssl rand -base64 32)
+        echo "root:$NEW_PASS" | chpasswd
+        echo "Root password set to: $NEW_PASS" > /root/.password_info
+        chmod 600 /root/.password_info
+    - unless: test -f /root/.password_info
+    - require:
+      - pkg: wordpress_stack
+{% endif %}

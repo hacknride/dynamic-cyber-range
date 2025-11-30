@@ -1,0 +1,5 @@
+os: linux
+difficulty: easy
+givens:
+  user: "alice"
+  password: "password123"

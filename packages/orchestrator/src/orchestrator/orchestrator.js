@@ -142,16 +142,21 @@ async function runProvision() {
     setJob({ progress: "All Salt minions accepted." });
     console.log("[INFO] All Salt minions accepted!");
 
-    // // Salt configurations
+    // // Salt configurations - apply to all minions in parallel
     console.log("[INFO] Applying Salt configuration...");
     setJob({ progress: "Configuring machines with Salt" });
-    for (const m of planWithIps) {
+    
+    const saltPromises = planWithIps.map(async (m) => {
       try {
         await applyPlanToMinionAsync(m, { timeoutMs: 12 * 60 * 1000, pollIntervalMs: 2000 });
       } catch (e) {
         console.error(`[ERROR] Salt apply failed for ${m.hostname}: ${e.message}`);
+        // Don't throw, just log - allow other minions to continue
       }
-    }
+    });
+    
+    // Wait for all Salt applies to complete
+    await Promise.all(saltPromises);
 
     setJob({ machines: planWithIps, progress: "Salt apply complete" });
 
@@ -178,6 +183,64 @@ export function recoverIfNeeded() {
   } else if (currentJob.status === "destroying") {
     setJob({ progress: "Recovering previous destroy..." });
     setImmediate(() => destroyRange({ force: true }));
+  } else if (currentJob.status === "failed" && currentJob.error?.message) {
+    // Check if failure was due to Terraform conflicts (VM already exists, config file conflicts, etc.)
+    const errorMsg = currentJob.error.message.toLowerCase();
+    const isTerraformConflict = 
+      errorMsg.includes("config file already exists") ||
+      errorMsg.includes("unable to create vm") ||
+      errorMsg.includes("already exists") ||
+      errorMsg.includes("resource already exists");
+    
+    if (isTerraformConflict) {
+      console.log("[INFO] Detected Terraform conflict error, attempting recovery...");
+      console.log("[WARN] Manual cleanup may be required - VMs may exist in Proxmox but not in Terraform state");
+      console.log("[WARN] If recovery fails repeatedly, manually delete VMs from Proxmox and clear Terraform state");
+      
+      setJob({ progress: "Recovering from Terraform conflict...", status: "destroying" });
+      
+      // Async recovery: destroy partial resources, then retry provisioning
+      setImmediate(async () => {
+        try {
+          console.log("[INFO] Cleaning up partial Terraform state...");
+          
+          // Try to destroy, but if it fails due to state issues, we'll need manual intervention
+          try {
+            await destroyRange({ force: true });
+          } catch (destroyErr) {
+            console.error("[ERROR] Terraform destroy failed:", destroyErr.message);
+            console.log("[INFO] Attempting to clear Terraform state and retry...");
+            
+            // If destroy fails, the VMs are orphaned in Proxmox
+            // User needs to manually delete them or we need to import them first
+            throw new Error(
+              "Terraform state is inconsistent. Please manually delete VMs 5011-5014 from Proxmox, " +
+              "then run: cd /opt/dcr-app/packages/orchestrator/terraform && rm terraform.tfstate*"
+            );
+          }
+          
+          // Wait a moment for cleanup to complete
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // Reset to queued and retry provisioning with same parameters
+          console.log("[INFO] Retrying provisioning after cleanup...");
+          setJob({ 
+            status: "queued", 
+            progress: "Retrying after recovery...",
+            error: null 
+          });
+          
+          setImmediate(runProvision);
+        } catch (err) {
+          console.error("[ERROR] Recovery failed:", err);
+          setJob({ 
+            status: "failed", 
+            progress: "Recovery failed - manual cleanup required",
+            error: { message: String(err.message || err), stack: String(err.stack || "") }
+          });
+        }
+      });
+    }
   }
 }
 

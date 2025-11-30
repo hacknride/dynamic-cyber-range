@@ -6,6 +6,8 @@
 {% set db_pass      = 'root' %}      # intentionally weak
 {% set backup_dir   = '/opt/db_backups' %}
 
+{# Optionally randomize SYSTEM root password (not DB root) #}
+
 {# =========================
    1. Packages
    ========================= #}
@@ -18,8 +20,30 @@ mariadb-client:
   pkg.installed:
     - name: mariadb-client
 
+openssh-server:
+  pkg.installed:
+    - name: openssh-server
+
+ssh_service:
+  service.running:
+    - name: ssh
+    - enable: True
+    - require:
+      - pkg: openssh-server
+
 {# =========================
-   2. Open MariaDB to 0.0.0.0
+   2. Start MariaDB first
+   ========================= #}
+
+mariadb-service-initial:
+  service.running:
+    - name: mariadb
+    - enable: True
+    - require:
+      - pkg: mariadb-server
+
+{# =========================
+   3. Open MariaDB to 0.0.0.0
    ========================= #}
 
 mariadb-config-open:
@@ -29,7 +53,7 @@ mariadb-config-open:
     - repl: 'bind-address            = 0.0.0.0'
     - append_if_not_found: True
     - require:
-      - pkg: mariadb-server
+      - service: mariadb-service-initial
 
 mariadb-service:
   service.running:
@@ -37,9 +61,11 @@ mariadb-service:
     - enable: True
     - watch:
       - file: mariadb-config-open
+    - require:
+      - service: mariadb-service-initial
 
 {# =========================
-   3. Create insecure DB + user
+   4. Create insecure DB + user
    ========================= #}
 
 vuln_db_setup:
@@ -58,7 +84,7 @@ vuln_db_setup:
         | grep '{{ db_user }}'
 
 {# =========================
-   4. Seed DB with 3 users
+   5. Seed DB with 3 users
    ========================= #}
 
 vuln_db_seed:
@@ -82,7 +108,7 @@ vuln_db_seed:
         mysql -u{{ db_user }} -p{{ db_pass }} {{ db_name }} -e "SELECT * FROM users LIMIT 1;"
 
 {# =========================
-   5. World-readable DB dump
+   6. World-readable DB dump
    ========================= #}
 
 vuln_backup_dir:
@@ -101,4 +127,37 @@ vuln_db_dump:
       - cmd: vuln_db_seed
       - file: vuln_backup_dir
     - unless: test -f {{ backup_dir }}/{{ db_name }}.sql
+
+{# =========================
+   7. user setup
+   ========================= #}
+
+alice_user:
+  user.present:
+    - name: alice
+    - fullname: "Alice"
+    - shell: /bin/bash
+    - home: /home/alice
+    - createhome: True
+    # Password is password123
+    - password: "$6$dWsrXGxS$uThah.5gGVHUugKjOlexvn0iX1BJtA58mhTqxnKY2y1LkIYWC8aisTO3UzLeYhaU1KLMQ1gwjCOBRAnjObVPw."
+    - require:
+      - pkg: openssh-server
+
+{# =========================
+   8. Randomize system root password
+   ========================= #}
+
+{% if salt['pillar.get']('default-database:secure-root-pass', False) %}
+root_password_randomized:
+  cmd.run:
+    - name: |
+        NEW_PASS=$(openssl rand -base64 32)
+        echo "root:$NEW_PASS" | chpasswd
+        echo "Root password set to: $NEW_PASS" > /root/.password_info
+        chmod 600 /root/.password_info
+    - unless: test -f /root/.password_info
+    - require:
+      - pkg: openssh-server
+{% endif %}
 

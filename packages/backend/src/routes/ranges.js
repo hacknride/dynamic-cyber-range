@@ -13,6 +13,9 @@ const incomingSchema = z.object({
   category: z.union([z.string(), z.array(z.string())]).transform(val => 
     Array.isArray(val) ? val : [val]
   ),
+  // New: support for selected categories within each stage
+  initialAccess: z.array(z.string()).optional().default([]),
+  privilegeEscalation: z.array(z.string()).optional().default([]),
   windowsCount: asInt.pipe(z.number().int().min(0)),
   linuxCount: asInt.pipe(z.number().int().min(0)),
   randomCount: asInt.pipe(z.number().int().min(0)),
@@ -23,11 +26,18 @@ function buildRangeConfig(userId, data) {
   const rangeId = `range-${Date.now()}`;
   
   // Transform frontend payload to orchestrator format
-  // category is now an array of attack-focus categories
-  const scenarios = data.category.map(cat => ({
-    name: cat,
-    vars: {}
-  }));
+  const scenarios = [
+    {
+      name: 'initial-access',
+      vars: {},
+      categories: data.initialAccess || []
+    },
+    {
+      name: 'privilege-escalation',
+      vars: {},
+      categories: data.privilegeEscalation || []
+    }
+  ];
   
   return {
     options: {
