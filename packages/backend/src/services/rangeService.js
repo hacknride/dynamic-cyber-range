@@ -1,23 +1,16 @@
+const ORCHESTRATOR_URL = process.env.ORCHESTRATOR_URL || "http://localhost:8080";
+
 export async function createRangeFromConfig(config) {
-  const machines = [];
-  let idx = 1;
+  const response = await fetch(`${ORCHESTRATOR_URL}/orchestrate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
 
-  const add = (count, prefix) => {
-    for (let i = 0; i < count; i++) {
-      machines.push({
-        id: `${config.id}-${prefix}-${idx}`,
-        name: `${prefix}-${idx}`,
-        ipAddress: `10.0.0.${10 + idx}`,
-        osType: prefix === "win" ? "windows" : prefix === "lin" ? "linux" : "mixed",
-        category: config.category,
-      });
-      idx++;
-    }
-  };
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Orchestrator error: ${response.status} - ${errorBody}`);
+  }
 
-  add(config.composition.windows, "win");
-  add(config.composition.linux, "lin");
-  add(config.composition.random, "rnd");
-
-  return { status: "provisioning", machines };
+  return await response.json();
 }
