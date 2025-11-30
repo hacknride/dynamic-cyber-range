@@ -1,0 +1,17 @@
+{
+  "options": {
+    "difficulty": "medium",
+    "amt-machines": 4,
+    "composition": {
+      "windows": 2,
+      "linux": 2,
+      "random": 0
+    }
+  },
+  "scenarios": [
+    {
+      "name": "web-exploits",
+      "vars": {}
+    }
+  ]
+}
