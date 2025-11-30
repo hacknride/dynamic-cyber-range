@@ -1,0 +1,6 @@
+services:
+  - name: apache2
+    enabled: true
+  - name: ssh
+    enabled: true
+
