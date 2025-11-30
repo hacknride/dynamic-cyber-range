@@ -71,18 +71,17 @@ setup_wp_database:
     - require:
       - pkg: wordpress_stack
 
-# --- Download & extract WordPress -------------------------------------
-wp_archive:
-  archive.extracted:
-    - name: {{ install_dir }}
-    - source: https://wordpress.org/wordpress-{{ version }}.tar.gz
-    - archive_format: tar
-    - options: --strip-components=1
-    - enforce_toplevel: False
-    - skip_verify: True
-    - if_missing: {{ install_dir }}/wp-settings.php
+# --- Download & extract WordPress (using WP-CLI for exact version) ---
+wp_download:
+  cmd.run:
+    - name: |
+        cd {{ install_dir }}
+        # Use WP-CLI to download exact version
+        sudo -u {{ web_user }} wp core download --version={{ version }} --force
+    - unless: test -f {{ install_dir }}/wp-settings.php && grep -q "{{ version }}" {{ install_dir }}/wp-includes/version.php
     - require:
       - file: {{ install_dir }}
+      - cmd: install_wpcli
 
 # --- wp-config.php ----------------------------------------------------
 {{ install_dir }}/wp-config.php:
@@ -95,6 +94,8 @@ wp_archive:
         define('DB_HOST', '{{ db_host }}');
         define('DB_CHARSET', 'utf8');
         define('DB_COLLATE', '');
+        define('WP_AUTO_UPDATE_CORE', false);
+        define('AUTOMATIC_UPDATER_DISABLED', true);
         $table_prefix = 'wp_';
         define('WP_DEBUG', false);
         if ( !defined('ABSPATH') )
@@ -105,7 +106,7 @@ wp_archive:
     - group: {{ web_group }}
     - mode: '0640'
     - require:
-      - archive: wp_archive
+      - cmd: wp_download
       - cmd: setup_wp_database
 
 # --- Permissions ------------------------------------------------------
@@ -176,13 +177,38 @@ wordpress_install:
     - name: |
         cd {{ install_dir }}
         HOSTNAME=$(hostname)
-        sudo -u {{ web_user }} wp core install \
-          --url="http://$(hostname -I | awk '{print $1}')" \
-          --title="$HOSTNAME" \
-          --admin_user=admin \
-          --admin_password=admin \
-          --admin_email=admin@"$HOSTNAME".dcr \
-          --skip-email
+        
+        # Verify WordPress 6.4 is actually present
+        CURRENT_VERSION=$(sudo -u {{ web_user }} wp core version 2>/dev/null || echo "not-installed")
+        echo "Current WordPress version: $CURRENT_VERSION"
+        
+        # If not 6.4, force download of 6.4
+        if [ "$CURRENT_VERSION" != "{{ version }}" ]; then
+          echo "Forcing WordPress {{ version }} download"
+          sudo -u {{ web_user }} wp core download --version={{ version }} --force
+        fi
+        
+        # Disable auto-updates BEFORE installation
+        sudo -u {{ web_user }} wp config set WP_AUTO_UPDATE_CORE false --raw
+        sudo -u {{ web_user }} wp config set AUTOMATIC_UPDATER_DISABLED true --raw
+        
+        # Check if WordPress is already installed
+        if sudo -u {{ web_user }} wp core is-installed 2>/dev/null; then
+          echo "WordPress already installed, skipping installation"
+        else
+          # Install WordPress without triggering updates
+          sudo -u {{ web_user }} wp core install \
+            --url="http://$(hostname -I | awk '{print $1}')" \
+            --title="$HOSTNAME".dcr \
+            --admin_user=admin \
+            --admin_password=admin \
+            --admin_email=admin@"$HOSTNAME".dcr \
+            --skip-email
+        fi
+        
+        # Disable plugin/theme auto-updates
+        sudo -u {{ web_user }} wp plugin auto-updates disable --all 2>/dev/null || true
+        sudo -u {{ web_user }} wp theme auto-updates disable --all 2>/dev/null || true
         # Clean up Sample Page
         sudo -u {{ web_user }} wp post delete 2 --force 2>/dev/null || true
     - unless: sudo -u {{ web_user }} wp core is-installed --path={{ install_dir }} 2>/dev/null
@@ -196,13 +222,23 @@ wordpress_customize:
   cmd.run:
     - name: |
         cd {{ install_dir }}
+        HOSTNAME=$(hostname)
+        
         # Activate Twenty Twenty Four (modern design with good block theme support)
         sudo -u {{ web_user }} wp theme install twentytwentyfour --activate
         
-        # For block themes, we need to insert the Login link directly into the header template
-        # Get or create navigation menu
-        NAV_ID=$(sudo -u {{ web_user }} wp post list --post_type=wp_navigation --format=ids | head -1)
-        if [ -z "$NAV_ID" ]; then
+        # Convert hostname from "noun-adjective" to "Noun Adjective" (capitalize each word)
+        FORMATTED_NAME=$(echo "$HOSTNAME" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2))}1')
+        
+        # Replace all "Études" instances in theme patterns with formatted hostname
+        find wp-content/themes/twentytwentyfour/patterns/ -type f -name "*.php" -exec sed -i "s/Études/$FORMATTED_NAME/g" {} \;
+        
+        # For block themes, update ALL navigation menus to include Login link
+        # Get all navigation IDs
+        NAV_IDS=$(sudo -u {{ web_user }} wp post list --post_type=wp_navigation --format=ids)
+        
+        if [ -z "$NAV_IDS" ]; then
+          # No navigation exists, create one
           NAV_ID=$(sudo -u {{ web_user }} wp post create \
             --post_type=wp_navigation \
             --post_status=publish \
@@ -210,14 +246,13 @@ wordpress_customize:
             --post_content='<!-- wp:navigation-link {"label":"Login","url":"/wp-login.php"} /-->' \
             --porcelain)
         else
-          # Update existing navigation to add Login link
-          sudo -u {{ web_user }} wp post update $NAV_ID \
-            --post_content='<!-- wp:navigation-link {"label":"Login","url":"/wp-login.php"} /-->'
+          # Update ALL existing navigations to include Login link
+          for NAV_ID in $NAV_IDS; do
+            sudo -u {{ web_user }} wp post update $NAV_ID \
+              --post_content='<!-- wp:navigation-link {"label":"Login","url":"/wp-login.php"} /-->'
+          done
         fi
-        
-        # Insert the navigation reference into the theme options
-        sudo -u {{ web_user }} wp option patch insert core_navigation primary $NAV_ID 2>/dev/null || true
-    - unless: sudo -u {{ web_user }} wp theme list --status=active --field=name --path={{ install_dir }} | grep -q twentytwentyfour
+    - onlyif: sudo -u {{ web_user }} wp core is-installed --path={{ install_dir }} 2>/dev/null
     - require:
       - cmd: wordpress_install
 
