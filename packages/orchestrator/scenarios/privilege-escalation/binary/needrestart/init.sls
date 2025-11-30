@@ -23,7 +23,17 @@ sudo_package:
   pkg.installed:
     - name: sudo
 
-# 3) Let ALL users run needrestart via sudo with no password (vulnerable misconfig)
+# 3) Enable interpreter scanning in needrestart config (makes it exploitable)
+needrestart_config_interpscan:
+  file.replace:
+    - name: /etc/needrestart/needrestart.conf
+    - pattern: '^\$nrconf\{interpscan\}\s*=\s*0;'
+    - repl: '$nrconf{interpscan} = 1;'
+    - append_if_not_found: True
+    - require:
+      - cmd: needrestart_3_5_installed
+
+# 4) Let ALL users run needrestart via sudo with no password (vulnerable misconfig)
 all_users_needrestart_sudo:
   file.managed:
     - name: /etc/sudoers.d/needrestart-all-users
