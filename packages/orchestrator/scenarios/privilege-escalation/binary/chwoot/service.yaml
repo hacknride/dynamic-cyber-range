@@ -1,15 +1,2 @@
-# Minimal driver for dcr/init.sls
-difficulty: easy   # easy | medium | hard
-os: linux              # linux | windows
-
-services:
-  - name: nginx
-    enabled: true
-  - name: docker
-    enabled: true
-  - name: sshd
-    enabled: true
-
-# Optional (only used when difficulty: hard and on Debian/Ubuntu):
-# sudo_vuln_deb_url: "https://example.com/sudo_1.9.17-1_amd64.deb"
-# sudo_vuln_deb_version: "1.9.17-1"
+os: linux
+difficulty: easy
