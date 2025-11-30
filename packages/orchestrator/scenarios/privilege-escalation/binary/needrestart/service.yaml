@@ -2,6 +2,3 @@ os: linux
 difficulty: easy
 vars:
   version: "3.5"
-givens:
-  user: "ubuntu"
-  password: "secure-password-123"
