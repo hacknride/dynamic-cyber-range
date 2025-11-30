@@ -18,12 +18,20 @@ needrestart_3_5_installed:
     - require:
       - cmd: needrestart_deb_downloaded
 
+# 3) Hold the package to prevent automatic upgrades
+needrestart_hold:
+  cmd.run:
+    - name: apt-mark hold needrestart
+    - unless: apt-mark showhold | grep -q needrestart
+    - require:
+      - cmd: needrestart_3_5_installed
+
 # Ensure sudo is present for later sudoers config
 sudo_package:
   pkg.installed:
     - name: sudo
 
-# 3) Enable interpreter scanning in needrestart config (makes it exploitable)
+# 4) Enable interpreter scanning in needrestart config (makes it exploitable)
 needrestart_config_interpscan:
   file.replace:
     - name: /etc/needrestart/needrestart.conf
@@ -31,9 +39,9 @@ needrestart_config_interpscan:
     - repl: '$nrconf{interpscan} = 1;'
     - append_if_not_found: True
     - require:
-      - cmd: needrestart_3_5_installed
+      - cmd: needrestart_hold
 
-# 4) Let ALL users run needrestart via sudo with no password (vulnerable misconfig)
+# 5) Let ALL users run needrestart via sudo with no password (vulnerable misconfig)
 all_users_needrestart_sudo:
   file.managed:
     - name: /etc/sudoers.d/needrestart-all-users
@@ -44,4 +52,4 @@ all_users_needrestart_sudo:
         ALL ALL=(ALL) NOPASSWD: /usr/sbin/needrestart
     - require:
       - pkg: sudo_package
-      - cmd: needrestart_3_5_installed
+      - cmd: needrestart_hold
