@@ -6,6 +6,7 @@
  */
 
 import express from "express";
+import dotenv from "dotenv";
 import { startOrchestration, getStatus, cancel, destroyRange, recoverIfNeeded } from "./orchestrator/orchestrator.js";
 import { readdir } from "fs/promises";
 import { join } from "path";
@@ -13,11 +14,39 @@ import { fileURLToPath } from "url";
 import jsYaml from "js-yaml";
 import { readFile } from "fs/promises";
 
+dotenv.config({ path: "../../.env" }); // Load from root .env
+
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.ORCHESTRATOR_PORT || 8080;
+const ORCHESTRATOR_SECRET = process.env.ORCHESTRATOR_SECRET;
 
 const app = express();
 app.use(express.json());
+
+// Authentication middleware - validates shared secret token
+const validateToken = (req, res, next) => {
+  // Skip authentication if no secret is configured (development/localhost mode)
+  if (!ORCHESTRATOR_SECRET) {
+    return next();
+  }
+  
+  const token = req.headers['x-orchestrator-token'];
+  
+  if (!token || token !== ORCHESTRATOR_SECRET) {
+    console.warn(`[WARN] Unauthorized access attempt from ${req.ip}`);
+    return res.status(403).json({ error: 'Forbidden: Invalid or missing authentication token' });
+  }
+  
+  next();
+};
+
+// Apply authentication to all routes except health check
+app.use((req, res, next) => {
+  if (req.path === '/server-status') {
+    return next(); // Allow health checks without auth
+  }
+  validateToken(req, res, next);
+});
 
 /**
  * Starts the orchestration process.
@@ -137,7 +166,8 @@ app.get("/scenarios", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Listening on :${PORT}`);
+  console.log(`[Orchestrator] Running on http://localhost:${PORT}`);
+  console.log(`[Orchestrator] Authentication: ${ORCHESTRATOR_SECRET ? 'ENABLED' : 'DISABLED (no secret set)'}`);
   // Attempt to resume a previous run if any
   recoverIfNeeded();
 });

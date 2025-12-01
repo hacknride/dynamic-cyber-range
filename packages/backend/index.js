@@ -4,14 +4,16 @@ import dotenv from "dotenv";
 import rangesRouter from "./src/routes/ranges.js";
 import currentJobRouter from "./src/routes/currentJob.js";
 
-dotenv.config();
+dotenv.config({ path: "../../.env" }); // Load from root .env
 
 const app = express();
+const PORT = process.env.BACKEND_PORT || 6247;
+const CORS_ORIGIN = process.env.CORS_ORIGIN || process.env.DASHBOARD_URL || "http://localhost:5173";
 
 app.use(express.json());
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    origin: CORS_ORIGIN,
     credentials: true,
   })
 );
@@ -30,7 +32,11 @@ app.use("/api/current-job", currentJobRouter);
 app.get("/api/scenarios", async (req, res) => {
   try {
     const orchUrl = process.env.ORCHESTRATOR_URL || "http://localhost:8080";
-    const response = await fetch(`${orchUrl}/scenarios`);
+    const headers = {};
+    if (process.env.ORCHESTRATOR_SECRET) {
+      headers['X-Orchestrator-Token'] = process.env.ORCHESTRATOR_SECRET;
+    }
+    const response = await fetch(`${orchUrl}/scenarios`, { headers });
     if (!response.ok) throw new Error(`Orchestrator returned ${response.status}`);
     const data = await response.json();
     res.json(data);
@@ -40,44 +46,11 @@ app.get("/api/scenarios", async (req, res) => {
   }
 });
 
-app.listen(6247, () => {
-  console.log("Server is running on http://localhost:6247");
-});
-
-import { ExpressAuth } from "@auth/express";
-
-// Authentik provider config
-const authentikProvider = {
-  id: "authentik",
-  name: "Authentik",
-  type: "oauth",
-  wellKnown: `${process.env.AUTHENTIK_ISSUER}/.well-known/openid-configuration`,
-  clientId: process.env.AUTHENTIK_CLIENT_ID,
-  clientSecret: process.env.AUTHENTIK_CLIENT_SECRET,
-  authorization: { params: { scope: "openid email profile" } },
-  idToken: true,
-  checks: ["pkce", "state"],
-  profile(profile) {
-    return { id: profile.sub, name: profile.name, email: profile.email };
-  },
-};
-
-// IMPORTANT: base path only — NO wildcard, NO regex
-app.use(
-  "/api/auth",
-  ExpressAuth({
-    secret: process.env.AUTH_SECRET,
-    baseUrl: process.env.AUTH_BASE_URL || "http://localhost:6247",
-    trustHost: true,
-    providers: [authentikProvider],
-    callbacks: {
-      async jwt({ token, account }) {
-        if (account) token.accessToken = account.access_token;
-        return token;
-      },
-    },
-  })
-);
-
-// Optional status
+// Optional status endpoint
 app.get("/api/status", (_req, res) => res.json({ ok: true }));
+
+app.listen(PORT, () => {
+  console.log(`[Backend] Running on http://localhost:${PORT}`);
+  console.log(`[Backend] CORS enabled for: ${CORS_ORIGIN}`);
+  console.log(`[Backend] Orchestrator URL: ${process.env.ORCHESTRATOR_URL || 'http://localhost:8080'}`);
+});

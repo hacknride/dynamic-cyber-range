@@ -1,6 +1,5 @@
 import express from "express";
 import { z } from "zod";
-import { createRangeFromConfig } from "../services/rangeService.js";
 
 const asInt = z.union([z.number(), z.string()]).transform((v) => Number(v));
 const asBool = z.union([z.boolean(), z.string()]).transform((v) =>
@@ -74,35 +73,44 @@ router.post("/", async (req, res) => {
     }
 
     const config = buildRangeConfig(userId, parsed.data);
-    const result = await createRangeFromConfig(config);
-
-    return res.status(201).json({
-      id: config.id,
-      status: result.status,
-      machines: result.machines,
-      config,
+    
+    // Call orchestrator directly
+    const orchUrl = process.env.ORCHESTRATOR_URL || "http://localhost:8080";
+    const headers = { "Content-Type": "application/json" };
+    if (process.env.ORCHESTRATOR_SECRET) {
+      headers['X-Orchestrator-Token'] = process.env.ORCHESTRATOR_SECRET;
+    }
+    
+    const response = await fetch(`${orchUrl}/orchestrate`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(config),
     });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      return res.status(response.status).json({ error: `Orchestrator error: ${errorBody}` });
+    }
+
+    const result = await response.json();
+    return res.status(202).json(result);
   } catch (e) {
     console.error("Error creating range:", e);
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.get("/:id", async (req, res) => {
-  const { id } = req.params;
-  return res.json({
-    id,
-    status: "active",
-    machines: [{ id: `${id}-lin-1`, name: "lin-1", ipAddress: "10.0.0.11" }],
-  });
-});
-
 router.delete("/", async (req, res) => {
   try {
     const orchUrl = process.env.ORCHESTRATOR_URL || "http://localhost:8080";
+    const headers = { "Content-Type": "application/json" };
+    if (process.env.ORCHESTRATOR_SECRET) {
+      headers['X-Orchestrator-Token'] = process.env.ORCHESTRATOR_SECRET;
+    }
+    
     const response = await fetch(`${orchUrl}/range/destroy`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ force: false }),
     });
 
