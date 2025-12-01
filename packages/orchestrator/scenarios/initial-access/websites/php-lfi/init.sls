@@ -143,5 +143,5 @@ root_password_randomized:
         chmod 600 /root/.password_info
     - unless: test -f /root/.password_info
     - require:
-      - pkg: openssh-server
+      - pkg: lfi_ssh_packages
 {% endif %}
