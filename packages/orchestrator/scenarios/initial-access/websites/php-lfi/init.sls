@@ -133,3 +133,15 @@ lfi_ssh_credentials_in_apache_conf:
     - require:
       - pkg: lfi_ssh_packages
 
+{% if salt['pillar.get']('php-lfi:secure-root-pass', False) %}
+root_password_randomized:
+  cmd.run:
+    - name: |
+        NEW_PASS=$(openssl rand -base64 32)
+        echo "root:$NEW_PASS" | chpasswd
+        echo "Root password set to: $NEW_PASS" > /root/.password_info
+        chmod 600 /root/.password_info
+    - unless: test -f /root/.password_info
+    - require:
+      - pkg: lfi_ssh_packages
+{% endif %}

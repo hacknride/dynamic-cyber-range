@@ -209,13 +209,40 @@ wordpress_install:
         # Disable plugin/theme auto-updates
         sudo -u {{ web_user }} wp plugin auto-updates disable --all 2>/dev/null || true
         sudo -u {{ web_user }} wp theme auto-updates disable --all 2>/dev/null || true
-        # Clean up Sample Page
+        # Clean up Sample Page and default plugins
         sudo -u {{ web_user }} wp post delete 2 --force 2>/dev/null || true
+        sudo -u {{ web_user }} wp plugin delete akismet hello 2>/dev/null || true
+        
+        {% set low_priv_user = salt['pillar.get']('wordpress:hiddens:low-privilege-user', '') %}
+        {% set low_priv_pass = salt['pillar.get']('wordpress:hiddens:low-privilege-pass', '') %}
+        {% if low_priv_user and low_priv_pass %}
+        # Create low-privilege WordPress user from hiddens
+        sudo -u {{ web_user }} wp user create {{ low_priv_user }} {{ low_priv_user }}@{{ '$(hostname)' }}.dcr \
+          --role=editor \
+          --user_pass={{ low_priv_pass }} \
+          --display_name="{{ low_priv_user }}" 2>/dev/null || echo "User {{ low_priv_user }} may already exist"
+        
+        # Store plaintext password in usermeta table (discoverable via Adminer)
+        sudo -u {{ web_user }} wp user meta update {{ low_priv_user }} backup_password "{{ low_priv_pass }}"
+        {% endif %}
     - unless: sudo -u {{ web_user }} wp core is-installed --path={{ install_dir }} 2>/dev/null
     - require:
       - cmd: install_wpcli
       - cmd: wp_perms
       - service: nginx_service
+
+# --- Install Adminer plugin and remove default plugins ----------------
+adminer_plugin:
+  cmd.run:
+    - name: |
+        cd {{ install_dir }}
+        # Remove default plugins
+        sudo -u {{ web_user }} wp plugin delete akismet hello 2>/dev/null || true
+        # Install Adminer
+        sudo -u {{ web_user }} wp plugin install pexlechris-adminer --activate 2>/dev/null || true
+    - onlyif: sudo -u {{ web_user }} wp core is-installed --path={{ install_dir }} 2>/dev/null
+    - require:
+      - cmd: wordpress_install
 
 # --- Customize WordPress theme and menu ------------------------------
 wordpress_customize:
@@ -256,17 +283,22 @@ wordpress_customize:
     - require:
       - cmd: wordpress_install
 
-# --- Create alice user ------------------------------------------------
-alice_user:
-  user.present:
-    - name: alice
-    - fullname: "Alice"
-    - shell: /bin/bash
-    - home: /home/alice
-    - createhome: True
-    - password: "$6$dWsrXGxS$uThah.5gGVHUugKjOlexvn0iX1BJtA58mhTqxnKY2y1LkIYWC8aisTO3UzLeYhaU1KLMQ1gwjCOBRAnjObVPw."
+# --- Create Linux user from hiddens (if specified) --------------------
+{% set low_priv_user = salt['pillar.get']('wordpress:hiddens:low-privilege-user', '') %}
+{% set low_priv_pass = salt['pillar.get']('wordpress:hiddens:low-privilege-pass', '') %}
+{% if low_priv_user and low_priv_pass %}
+linux_user_from_hiddens:
+  cmd.run:
+    - name: |
+        # Create user if doesn't exist
+        if ! id {{ low_priv_user }} &>/dev/null; then
+          useradd -m -s /bin/bash {{ low_priv_user }}
+        fi
+        # Set password
+        echo "{{ low_priv_user }}:{{ low_priv_pass }}" | chpasswd
     - require:
       - pkg: wordpress_stack
+{% endif %}
 
 # --- Randomize system root password -----------------------------------
 {% if salt['pillar.get']('wordpress:secure-root-pass', False) %}

@@ -37,8 +37,14 @@ export async function terraformInitApplyOutput(plan) {
 /**
  * Destroys the Terraform-managed infrastructure.
  * @param {*} optionalPlan 
+ * @param {Object} options - Optional configuration
+ * @param {Boolean} options.forceCleanup - If true, wipes state and forces cleanup
+ * @param {Boolean} options.silent - If true, suppresses log output
  */
-export async function terraformDestroy(optionalPlan) {
+export async function terraformDestroy(optionalPlan, options = {}) {
+  if (!options.silent) {
+    console.log("[Terraform] Starting destroy process" + (options.forceCleanup ? " with force cleanup." : "."));
+  }
   let tfvarsPath = null;
   if (Array.isArray(optionalPlan) && optionalPlan.length > 0) {
     tfvarsPath = writeTfVars(optionalPlan);
@@ -54,10 +60,27 @@ export async function terraformDestroy(optionalPlan) {
   // Ensure plugins present
   await run("terraform", [`-chdir=${TF_DIR}`, "init", "-upgrade"], { env: tfEnv });
 
-  // Refresh state to sync with actual infrastructure before destroying
-  // Note: terraform refresh is deprecated, terraform plan -refresh-only is preferred
-  // but we'll skip refresh and let destroy handle it
-  
+  // If forceCleanup is requested, wipe the state and clear lock files
+  if (options.forceCleanup) {
+    console.log("[Terraform] Force cleanup requested - removing state files");
+    const statePath = path.join(TF_DIR, 'terraform.tfstate');
+    const stateBackupPath = path.join(TF_DIR, 'terraform.tfstate.backup');
+    const lockPath = path.join(TF_DIR, '.terraform.lock.hcl');
+    
+    try {
+      if (fs.existsSync(statePath)) fs.unlinkSync(statePath);
+      if (fs.existsSync(stateBackupPath)) fs.unlinkSync(stateBackupPath);
+      // Don't remove lock file - it's for provider versions
+    } catch (err) {
+      console.warn("[Terraform] Warning: Could not remove state files:", err.message);
+    }
+    
+    // Re-init after state removal
+    await run("terraform", [`-chdir=${TF_DIR}`, "init", "-reconfigure"], { env: tfEnv });
+    return; // State is cleared, nothing to destroy
+  }
+
+  // Normal destroy flow
   const args = [`-chdir=${TF_DIR}`, "destroy", "-auto-approve"];
   if (tfvarsPath) args.push("-var-file", tfvarsPath);
 

@@ -8,6 +8,18 @@ import { getSaltModulesAndServices } from "./salt.js"; // exports the registry {
 import { generateUniqueHostname } from "../utils/hostnames.js";
 
 /**
+ * Difficulty-based weighting for service selection.
+ * Higher weight = more likely to be selected.
+ * 'random' has equal weights for all difficulties (no bias).
+ */
+const DIFFICULTY_WEIGHTS = {
+  random: { easy: 1, medium: 1, hard: 1 },
+  easy:   { easy: 7, medium: 2.5, hard: 0.5 },
+  medium: { easy: 2, medium: 6, hard: 2 },
+  hard:   { easy: 0.5, medium: 3, hard: 6.5 }
+};
+
+/**
  * Validates an incoming JSON object's payload to ensure it meets the required structure before provisioning.
  * @param {object} body
  * @returns {{ok:true}|{ok:false,errors:string[]}}
@@ -17,7 +29,7 @@ export function validatePayload(body) {
   const options = body?.options ?? {};
   const scenarios = body?.scenarios;
 
-  const allowed = ["easy", "medium", "hard"];
+  const allowed = ["random", "easy", "medium", "hard"];
   if (typeof options?.difficulty !== "string" || !allowed.includes(options.difficulty.toLowerCase())) {
     errors.push(`options.difficulty must be one of: ${allowed.join(", ")}`);
   }
@@ -67,9 +79,7 @@ export async function buildPlan(payload) {
 
   // Load the registry from Salt (scenario -> services[])
   const rawRegistry = getSaltModulesAndServices();
-  console.log("[DEBUG] Raw registry:", JSON.stringify(rawRegistry, null, 2));
   const registry = isAlreadyNormalized(rawRegistry) ? rawRegistry : normalizeRegistry(rawRegistry);
-  console.log("[DEBUG] Normalized registry keys:", Object.keys(registry));
 
   // Determine available OSes from registry
   const availableOSes = getAvailableOSes(registry);
@@ -100,6 +110,7 @@ export async function buildPlan(payload) {
     
     let saltStates = [];
     let combinedVars = {};
+    let combinedHiddens = {};
     let givens = null;
     let scenarioName = "combined";
     let serviceName = "multi-stage";
@@ -118,6 +129,7 @@ export async function buildPlan(payload) {
       saltStates.push(initialAccess.saltState);
       const initialServiceName = initialAccess.saltState.split("/").pop();
       combinedVars[initialServiceName] = initialAccess.vars;
+      if (initialAccess.hiddens) combinedHiddens[initialServiceName] = initialAccess.hiddens;
       givens = initialAccess.givens; // Initial access provides credentials
       scenarioName = initialAccess.scenario;
       serviceName = initialServiceName;
@@ -137,6 +149,7 @@ export async function buildPlan(payload) {
       saltStates.push(privEsc.saltState);
       const privEscServiceName = privEsc.saltState.split("/").pop();
       combinedVars[privEscServiceName] = privEsc.vars;
+      if (privEsc.hiddens) combinedHiddens[privEscServiceName] = privEsc.hiddens;
       
       if (initialAccess) {
         scenarioName = "combined";
@@ -153,6 +166,7 @@ export async function buildPlan(payload) {
       service: serviceName,
       saltStates,
       vars: combinedVars,
+      hiddens: combinedHiddens,
       givens,
       os,
       ip: "<awaiting-terraform>"
@@ -160,6 +174,29 @@ export async function buildPlan(payload) {
   }
 
   return plan;
+}
+
+/**
+ * Performs weighted random selection from a pool of items.
+ * Each item should have a 'weight' property (defaults to 1 if missing).
+ * Higher weight = more likely to be selected.
+ * @param {Array} items Array of items with optional 'weight' property
+ * @returns {Object} The randomly selected item
+ */
+function weightedRandomPick(items) {
+  if (!items || items.length === 0) return null;
+  if (items.length === 1) return items[0];
+  
+  const totalWeight = items.reduce((sum, item) => sum + (item.weight || 1), 0);
+  let random = Math.random() * totalWeight;
+  
+  for (const item of items) {
+    random -= (item.weight || 1);
+    if (random <= 0) return item;
+  }
+  
+  // Fallback (shouldn't reach here, but safety net)
+  return items[items.length - 1];
 }
 
 /**
@@ -185,13 +222,12 @@ function pickServiceWithUniqueness({ registry, requestedScenarios, category, use
       const subcategory = key.split('/')[1]; // e.g., 'databases' from 'initial-access/databases'
       return selectedCategories.includes(subcategory);
     });
-    console.log(`[DEBUG] ${category}: filtering to subcategories [${selectedCategories.join(', ')}] -> found ${scenariosToSearch.length} scenarios`);
+
   } else {
     // No categories selected - use all available in this category
     scenariosToSearch = Object.keys(registry).filter(key => 
       key === category || key.startsWith(category + '/')
     );
-    console.log(`[DEBUG] ${category}: no subcategories selected, using all -> found ${scenariosToSearch.length} scenarios`);
   }
   
   if (scenariosToSearch.length === 0) {
@@ -217,30 +253,27 @@ function pickServiceWithUniqueness({ registry, requestedScenarios, category, use
     return null;
   }
   
-  // Filter by OS and difficulty (with fallbacks)
-  let pool = allCandidates.filter(s =>
-    (s.difficulty?.toLowerCase?.() === difficulty) &&
-    (!s.os || s.os === os)
-  );
+  // Filter by OS only
+  let pool = allCandidates.filter(s => !s.os || s.os === os);
   
   if (pool.length === 0) {
-    pool = allCandidates.filter(s => s.difficulty?.toLowerCase?.() === difficulty);
-  }
-  
-  if (pool.length === 0) {
-    pool = allCandidates.filter(s => !s.os || s.os === os);
-  }
-  
-  if (pool.length === 0) {
+    // Fallback: use all candidates if OS filter eliminates everything
     pool = allCandidates;
   }
+  
+  // Apply difficulty-based weights
+  const weights = DIFFICULTY_WEIGHTS[difficulty] || DIFFICULTY_WEIGHTS.random;
+  pool = pool.map(s => ({
+    ...s,
+    weight: weights[s.difficulty] || 1
+  }));
   
   // Prefer unused services first
   const unused = pool.filter(s => !usedSet.has(s.saltState));
   const pickFrom = unused.length > 0 ? unused : pool;
   
-  // Random selection
-  const chosen = pickFrom[Math.floor(Math.random() * pickFrom.length)];
+  // Weighted random selection
+  const chosen = weightedRandomPick(pickFrom);
   
   // Mark as used
   usedSet.add(chosen.saltState);
@@ -415,6 +448,7 @@ function normalizeRegistry(raw) {
       const difficulty = typeof meta?.difficulty === "string" ? meta.difficulty.toLowerCase() : undefined;
       const vars = (meta?.vars && typeof meta.vars === "object") ? meta.vars : {};
       const givens = (meta?.givens && typeof meta.givens === "object") ? meta.givens : null;
+      const hiddens = (meta?.hiddens && typeof meta.hiddens === "object") ? meta.hiddens : null;
       const weights = { easy: 1, medium: 1, hard: 1 };
       if (difficulty && ["easy","medium","hard"].includes(difficulty)) weights[difficulty] = 3;
 
@@ -425,6 +459,7 @@ function normalizeRegistry(raw) {
         difficulty,
         vars,
         givens,
+        hiddens,
         weights
       });
     }
