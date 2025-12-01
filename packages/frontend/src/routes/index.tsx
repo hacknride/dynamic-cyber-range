@@ -19,7 +19,7 @@
 // }
 
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './index.module.css';
 
 type Machine = {

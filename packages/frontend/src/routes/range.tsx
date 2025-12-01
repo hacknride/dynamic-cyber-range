@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './range.module.css';
 
 export const Route = createFileRoute('/range')({
@@ -28,7 +28,7 @@ function Range() {
   
   // Track range status based on current job
   const [rangeStatus, setRangeStatus] = useState<'idle' | 'building' | 'deployed' | 'destroying'>('idle');
-  const [loading, setLoading] = useState(true);
+  const [_loading, _setLoading] = useState(true);
   const [jobFetchError, setJobFetchError] = useState(false);
   
   // Two-stage attack selection with multi-select
@@ -107,7 +107,7 @@ function Range() {
       setJobFetchError(true);
       setRangeStatus('idle');
     } finally {
-      setLoading(false);
+      _setLoading(false);
     }
   };
 
@@ -192,7 +192,7 @@ function Range() {
         throw new Error(msg || `HTTP ${res.status}`);
       }
 
-      const data = await res.json();
+      void await res.json();
       // Status will be updated by polling fetchCurrentJob
       await fetchCurrentJob();
     } catch (err: any) {
