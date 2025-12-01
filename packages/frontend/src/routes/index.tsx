@@ -133,9 +133,9 @@ function Landing() {
         Scenarios
       </button>
 
-                <div className={styles.settingsGroup}>
+                {/* <div className={styles.settingsGroup}>
                     <button className={styles.navButton}>User Settings</button>
-                </div>
+                </div> */}
             </div>
 
             {/* Main content */}

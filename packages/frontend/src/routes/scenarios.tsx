@@ -91,9 +91,9 @@ function ScenariosPage() {
         </button>
         <button className={styles.navButtonActive}>Scenarios</button>
 
-        <div className={styles.settingsGroup}>
+        {/* <div className={styles.settingsGroup}>
           <button className={styles.navButton}>User Settings</button>
-        </div>
+        </div> */}
       </aside>
 
       {/* Main content */}

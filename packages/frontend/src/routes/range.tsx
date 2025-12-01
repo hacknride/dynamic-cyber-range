@@ -261,9 +261,9 @@ function Range() {
           Scenarios
         </button>
 
-        <div className={styles.settingsGroup}>
+        {/* <div className={styles.settingsGroup}>
           <button className={styles.navButton}>User Settings</button>
-        </div>
+        </div> */}
       </aside>
 
       {/* Main configuration content */}
@@ -342,7 +342,7 @@ function Range() {
               />
             </label>
 
-            <label className={styles.field}>
+            <label className={styles.field} style={{ opacity: 0.5 }}>
               <span>Windows hosts</span>
               <input
                 type="text"
@@ -359,7 +359,7 @@ function Range() {
                   if (num < 0) setWindowsCount('0');
                   else if (num > max) setWindowsCount(String(max));
                 }}
-                disabled={isDisabled}
+                disabled={true}
               />
             </label>
 
