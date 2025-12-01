@@ -79,9 +79,7 @@ export async function buildPlan(payload) {
 
   // Load the registry from Salt (scenario -> services[])
   const rawRegistry = getSaltModulesAndServices();
-  console.log("[DEBUG] Raw registry:", JSON.stringify(rawRegistry, null, 2));
   const registry = isAlreadyNormalized(rawRegistry) ? rawRegistry : normalizeRegistry(rawRegistry);
-  console.log("[DEBUG] Normalized registry keys:", Object.keys(registry));
 
   // Determine available OSes from registry
   const availableOSes = getAvailableOSes(registry);
@@ -220,13 +218,12 @@ function pickServiceWithUniqueness({ registry, requestedScenarios, category, use
       const subcategory = key.split('/')[1]; // e.g., 'databases' from 'initial-access/databases'
       return selectedCategories.includes(subcategory);
     });
-    console.log(`[DEBUG] ${category}: filtering to subcategories [${selectedCategories.join(', ')}] -> found ${scenariosToSearch.length} scenarios`);
+
   } else {
     // No categories selected - use all available in this category
     scenariosToSearch = Object.keys(registry).filter(key => 
       key === category || key.startsWith(category + '/')
     );
-    console.log(`[DEBUG] ${category}: no subcategories selected, using all -> found ${scenariosToSearch.length} scenarios`);
   }
   
   if (scenariosToSearch.length === 0) {
