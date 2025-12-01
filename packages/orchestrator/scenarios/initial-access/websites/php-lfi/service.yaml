@@ -1,6 +1,4 @@
-services:
-  - name: apache2
-    enabled: true
-  - name: ssh
-    enabled: true
-
+os: linux
+difficulty: medium
+vars:
+  secure-root-pass: true

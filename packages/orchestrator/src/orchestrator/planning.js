@@ -8,6 +8,18 @@ import { getSaltModulesAndServices } from "./salt.js"; // exports the registry {
 import { generateUniqueHostname } from "../utils/hostnames.js";
 
 /**
+ * Difficulty-based weighting for service selection.
+ * Higher weight = more likely to be selected.
+ * 'random' has equal weights for all difficulties (no bias).
+ */
+const DIFFICULTY_WEIGHTS = {
+  random: { easy: 1, medium: 1, hard: 1 },
+  easy:   { easy: 7, medium: 2.5, hard: 0.5 },
+  medium: { easy: 2, medium: 6, hard: 2 },
+  hard:   { easy: 0.5, medium: 3, hard: 6.5 }
+};
+
+/**
  * Validates an incoming JSON object's payload to ensure it meets the required structure before provisioning.
  * @param {object} body
  * @returns {{ok:true}|{ok:false,errors:string[]}}
@@ -17,7 +29,7 @@ export function validatePayload(body) {
   const options = body?.options ?? {};
   const scenarios = body?.scenarios;
 
-  const allowed = ["easy", "medium", "hard"];
+  const allowed = ["random", "easy", "medium", "hard"];
   if (typeof options?.difficulty !== "string" || !allowed.includes(options.difficulty.toLowerCase())) {
     errors.push(`options.difficulty must be one of: ${allowed.join(", ")}`);
   }
@@ -163,6 +175,29 @@ export async function buildPlan(payload) {
 }
 
 /**
+ * Performs weighted random selection from a pool of items.
+ * Each item should have a 'weight' property (defaults to 1 if missing).
+ * Higher weight = more likely to be selected.
+ * @param {Array} items Array of items with optional 'weight' property
+ * @returns {Object} The randomly selected item
+ */
+function weightedRandomPick(items) {
+  if (!items || items.length === 0) return null;
+  if (items.length === 1) return items[0];
+  
+  const totalWeight = items.reduce((sum, item) => sum + (item.weight || 1), 0);
+  let random = Math.random() * totalWeight;
+  
+  for (const item of items) {
+    random -= (item.weight || 1);
+    if (random <= 0) return item;
+  }
+  
+  // Fallback (shouldn't reach here, but safety net)
+  return items[items.length - 1];
+}
+
+/**
  * Picks a service with uniqueness tracking until options are exhausted, then allows repeats.
  * @param {Object} param0 Contains registry, requestedScenarios, category, usedSet, os, difficulty
  * @returns {Object|null} The selected service or null if none available
@@ -217,30 +252,27 @@ function pickServiceWithUniqueness({ registry, requestedScenarios, category, use
     return null;
   }
   
-  // Filter by OS and difficulty (with fallbacks)
-  let pool = allCandidates.filter(s =>
-    (s.difficulty?.toLowerCase?.() === difficulty) &&
-    (!s.os || s.os === os)
-  );
+  // Filter by OS only
+  let pool = allCandidates.filter(s => !s.os || s.os === os);
   
   if (pool.length === 0) {
-    pool = allCandidates.filter(s => s.difficulty?.toLowerCase?.() === difficulty);
-  }
-  
-  if (pool.length === 0) {
-    pool = allCandidates.filter(s => !s.os || s.os === os);
-  }
-  
-  if (pool.length === 0) {
+    // Fallback: use all candidates if OS filter eliminates everything
     pool = allCandidates;
   }
+  
+  // Apply difficulty-based weights
+  const weights = DIFFICULTY_WEIGHTS[difficulty] || DIFFICULTY_WEIGHTS.random;
+  pool = pool.map(s => ({
+    ...s,
+    weight: weights[s.difficulty] || 1
+  }));
   
   // Prefer unused services first
   const unused = pool.filter(s => !usedSet.has(s.saltState));
   const pickFrom = unused.length > 0 ? unused : pool;
   
-  // Random selection
-  const chosen = pickFrom[Math.floor(Math.random() * pickFrom.length)];
+  // Weighted random selection
+  const chosen = weightedRandomPick(pickFrom);
   
   // Mark as used
   usedSet.add(chosen.saltState);

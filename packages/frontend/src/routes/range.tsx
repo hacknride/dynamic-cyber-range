@@ -7,7 +7,7 @@ export const Route = createFileRoute('/range')({
 });
 
 type RangePayload = {
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'random' | 'easy' | 'medium' | 'hard';
   machinesPresent: number;
   category: string[];       // For backward compatibility
   initialAccess: string[];  // Selected initial access subcategories
@@ -21,7 +21,7 @@ type RangePayload = {
 function Range() {
   const navigate = useNavigate();
 
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
+  const [difficulty, setDifficulty] = useState<'random' | 'easy' | 'medium' | 'hard'>('random');
   const [machineCount, setMachineCount] = useState<string>('1');
   const [linuxCount, setLinuxCount] = useState<string>('0');
   const [windowsCount, setWindowsCount] = useState<string>('0');
@@ -237,7 +237,7 @@ function Range() {
   };
 
   const handleReset = () => {
-    setDifficulty('easy');
+    setDifficulty('random');
     setMachineCount('1');
     setLinuxCount('0');
     setWindowsCount('0');
@@ -295,9 +295,10 @@ function Range() {
               <span>Difficulty</span>
               <select
                 value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
+                onChange={(e) => setDifficulty(e.target.value as 'random' | 'easy' | 'medium' | 'hard')}
                 disabled={isDisabled}
               >
+                <option value="random">Random (No Bias)</option>
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
