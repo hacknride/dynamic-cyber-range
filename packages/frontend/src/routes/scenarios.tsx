@@ -45,11 +45,8 @@ function ScenariosPage() {
       setStages(data);
       // Stages are always expanded (not collapsible)
       setExpandedStages(new Set(data.map((s: Stage) => s.stage)));
-      // Expand all subcategories by default
-      const allSubcats = data.flatMap((s: Stage) => 
-        s.subcategories?.map((sub: Subcategory) => `${s.stage}/${sub.name}`) || []
-      );
-      setExpandedSubcategories(new Set(allSubcats));
+      // Subcategories are collapsed by default
+      setExpandedSubcategories(new Set());
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
