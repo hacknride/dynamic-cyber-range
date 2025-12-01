@@ -298,7 +298,7 @@ linux_user_from_hiddens:
         echo "{{ low_priv_user }}:{{ low_priv_pass }}" | chpasswd
     - require:
       - pkg: wordpress_stack
-{% else %}
+{% endif %}
 
 # --- Randomize system root password -----------------------------------
 {% if salt['pillar.get']('wordpress:secure-root-pass', False) %}

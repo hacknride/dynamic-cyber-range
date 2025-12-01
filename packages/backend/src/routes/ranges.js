@@ -7,7 +7,7 @@ const asBool = z.union([z.boolean(), z.string()]).transform((v) =>
 );
 
 const incomingSchema = z.object({
-  difficulty: z.enum(["easy", "medium", "hard"]),
+  difficulty: z.enum(["easy", "medium", "hard", "random"]),
   machinesPresent: asInt.pipe(z.number().int().min(1).max(10)),
   category: z.union([z.string(), z.array(z.string())]).transform(val => 
     Array.isArray(val) ? val : [val]
