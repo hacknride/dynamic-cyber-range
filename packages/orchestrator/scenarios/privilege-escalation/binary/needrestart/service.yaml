@@ -1,4 +1,0 @@
-os: linux
-difficulty: easy
-vars:
-  version: "3.5"
