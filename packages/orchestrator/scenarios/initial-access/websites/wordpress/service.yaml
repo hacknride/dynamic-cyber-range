@@ -3,3 +3,6 @@ difficulty: easy
 vars:
   secure-root-pass: true
   version: "6.4"
+hiddens:
+  low-privilege-user: "larry"
+  low-privilege-pass: "E137ob4FH6Za05a8RNNzDGd9CU26xFdP"

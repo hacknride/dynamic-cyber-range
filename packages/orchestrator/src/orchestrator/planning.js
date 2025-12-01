@@ -110,6 +110,7 @@ export async function buildPlan(payload) {
     
     let saltStates = [];
     let combinedVars = {};
+    let combinedHiddens = {};
     let givens = null;
     let scenarioName = "combined";
     let serviceName = "multi-stage";
@@ -128,6 +129,7 @@ export async function buildPlan(payload) {
       saltStates.push(initialAccess.saltState);
       const initialServiceName = initialAccess.saltState.split("/").pop();
       combinedVars[initialServiceName] = initialAccess.vars;
+      if (initialAccess.hiddens) combinedHiddens[initialServiceName] = initialAccess.hiddens;
       givens = initialAccess.givens; // Initial access provides credentials
       scenarioName = initialAccess.scenario;
       serviceName = initialServiceName;
@@ -147,6 +149,7 @@ export async function buildPlan(payload) {
       saltStates.push(privEsc.saltState);
       const privEscServiceName = privEsc.saltState.split("/").pop();
       combinedVars[privEscServiceName] = privEsc.vars;
+      if (privEsc.hiddens) combinedHiddens[privEscServiceName] = privEsc.hiddens;
       
       if (initialAccess) {
         scenarioName = "combined";
@@ -163,6 +166,7 @@ export async function buildPlan(payload) {
       service: serviceName,
       saltStates,
       vars: combinedVars,
+      hiddens: combinedHiddens,
       givens,
       os,
       ip: "<awaiting-terraform>"
@@ -444,6 +448,7 @@ function normalizeRegistry(raw) {
       const difficulty = typeof meta?.difficulty === "string" ? meta.difficulty.toLowerCase() : undefined;
       const vars = (meta?.vars && typeof meta.vars === "object") ? meta.vars : {};
       const givens = (meta?.givens && typeof meta.givens === "object") ? meta.givens : null;
+      const hiddens = (meta?.hiddens && typeof meta.hiddens === "object") ? meta.hiddens : null;
       const weights = { easy: 1, medium: 1, hard: 1 };
       if (difficulty && ["easy","medium","hard"].includes(difficulty)) weights[difficulty] = 3;
 
@@ -454,6 +459,7 @@ function normalizeRegistry(raw) {
         difficulty,
         vars,
         givens,
+        hiddens,
         weights
       });
     }

@@ -236,8 +236,12 @@ export async function applyPlanToMinionAsync(
   if (!target) throw new Error("applyPlanToMinionAsync: no minion target (hostname/ip) provided.");
 
   const saltenv = "base";
-  // Merge vars and givens into pillar data so Salt states can access both
-  const pillarData = { ...(machine.vars || {}), ...(machine.givens || {}) };
+  // Merge vars, hiddens, and givens into pillar data so Salt states can access all
+  const pillarData = { 
+    ...(machine.vars || {}), 
+    ...(machine.hiddens || {}),
+    ...(machine.givens || {}) 
+  };
   const pillarJson = JSON.stringify(pillarData);
   const pillarArg = `pillar='${shellQuote(pillarJson)}'`;
 
