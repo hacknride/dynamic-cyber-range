@@ -21,6 +21,12 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    host: true,
+    allowedHosts: [
+      'dcr.internal.osscsuf.org',
+      'localhost',
+      '127.0.0.1'
+    ],
     proxy: { '/api': { target: 'http://localhost:6247', changeOrigin: true } },
   }
   

@@ -62,54 +62,70 @@ app.post("/range/cancel", (req, res) => {
 });
 
 /**
- * Lists all available scenarios grouped by attack focus category.
+ * Lists all available scenarios grouped by stage (initial-access, privilege-escalation).
+ * Now supports nested folder structure like initial-access/databases/default-database
  */
 app.get("/scenarios", async (req, res) => {
   try {
     const scenariosPath = join(__dirname, "../scenarios");
-    const categories = await readdir(scenariosPath, { withFileTypes: true });
+    const stages = await readdir(scenariosPath, { withFileTypes: true });
     
     const result = [];
     
-    for (const category of categories) {
-      if (!category.isDirectory()) continue;
+    for (const stage of stages) {
+      if (!stage.isDirectory()) continue;
       
-      const categoryPath = join(scenariosPath, category.name);
-      const services = await readdir(categoryPath, { withFileTypes: true });
+      const stagePath = join(scenariosPath, stage.name);
+      const categories = await readdir(stagePath, { withFileTypes: true });
       
-      const scenarios = [];
+      const subcategories = [];
       
-      for (const service of services) {
-        if (!service.isDirectory()) continue;
+      // Iterate through subcategories (databases, websites, binaries, etc.)
+      for (const category of categories) {
+        if (!category.isDirectory()) continue;
         
-        const servicePath = join(categoryPath, service.name);
-        const serviceYamlPath = join(servicePath, "service.yaml");
+        const categoryPath = join(stagePath, category.name);
+        const services = await readdir(categoryPath, { withFileTypes: true });
         
-        try {
-          const yamlContent = await readFile(serviceYamlPath, "utf-8");
-          const metadata = jsYaml.load(yamlContent);
+        const scenarios = [];
+        
+        for (const service of services) {
+          if (!service.isDirectory()) continue;
           
-          scenarios.push({
-            name: service.name,
-            os: metadata.os || "unknown",
-            difficulty: metadata.difficulty || "medium",
-            vars: metadata.vars || {}
-          });
-        } catch (err) {
-          // If service.yaml doesn't exist or can't be parsed, skip or use defaults
-          scenarios.push({
-            name: service.name,
-            os: "unknown",
-            difficulty: "medium",
-            vars: {}
+          const servicePath = join(categoryPath, service.name);
+          const serviceYamlPath = join(servicePath, "service.yaml");
+          
+          try {
+            const yamlContent = await readFile(serviceYamlPath, "utf-8");
+            const metadata = jsYaml.load(yamlContent);
+            
+            scenarios.push({
+              name: service.name,
+              fullPath: `${stage.name}/${category.name}/${service.name}`,
+              os: metadata.os || "unknown",
+              difficulty: metadata.difficulty || "medium",
+              vars: metadata.vars || {},
+              givens: metadata.givens || null
+            });
+          } catch (err) {
+            // If service.yaml doesn't exist or can't be parsed, skip
+            console.warn(`Failed to load service.yaml for ${stage.name}/${category.name}/${service.name}`);
+          }
+        }
+        
+        if (scenarios.length > 0) {
+          subcategories.push({
+            name: category.name,
+            displayName: category.name.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+            scenarios
           });
         }
       }
       
       result.push({
-        category: category.name,
-        displayName: category.name.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
-        scenarios
+        stage: stage.name,
+        displayName: stage.name.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+        subcategories
       });
     }
     

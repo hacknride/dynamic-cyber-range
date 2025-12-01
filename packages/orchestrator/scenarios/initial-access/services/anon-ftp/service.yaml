@@ -1,0 +1,9 @@
+difficulty: easy
+os: linux
+
+services:
+  - name: vsftpd
+    enabled: true
+  - name: apache2
+    enabled: true
+

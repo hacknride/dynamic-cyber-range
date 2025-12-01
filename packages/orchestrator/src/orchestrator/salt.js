@@ -236,18 +236,41 @@ export async function applyPlanToMinionAsync(
   if (!target) throw new Error("applyPlanToMinionAsync: no minion target (hostname/ip) provided.");
 
   const saltenv = "base";
-  const pillarJson = JSON.stringify(machine.vars || {});
+  // Merge vars and givens into pillar data so Salt states can access both
+  const pillarData = { ...(machine.vars || {}), ...(machine.givens || {}) };
+  const pillarJson = JSON.stringify(pillarData);
   const pillarArg = `pillar='${shellQuote(pillarJson)}'`;
 
   const sh = (cmd) =>
     execSync(cmd, { stdio: ["ignore", "pipe", "pipe"] }).toString("utf8").trim();
 
-  // 1) verify connectivity
+  // 1) verify connectivity with retry logic
   {
-    const out = sh(`salt -t 30 --out=json '${shellQuote(target)}' test.ping`);
-    const parsed = JSON.parse(out || "{}");
-    if (parsed?.[target] !== true) {
-      throw new Error(`Minion ${target} is not responding to test.ping`);
+    const maxRetries = 5;
+    const retryDelay = 3000; // 3 seconds between retries
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[INFO] ${target}: Attempting to ping minion (attempt ${attempt}/${maxRetries})...`);
+        const out = sh(`salt -t 30 --out=json '${shellQuote(target)}' test.ping`);
+        const parsed = JSON.parse(out || "{}");
+        if (parsed?.[target] === true) {
+          console.log(`[INFO] ${target}: Minion responded successfully`);
+          break; // Success, exit retry loop
+        }
+        throw new Error(`Minion ${target} did not return true for test.ping`);
+      } catch (e) {
+        lastError = e;
+        console.warn(`[WARN] ${target}: Ping attempt ${attempt} failed: ${e.message}`);
+        
+        if (attempt < maxRetries) {
+          console.log(`[INFO] ${target}: Waiting ${retryDelay}ms before retry...`);
+          execSync(`sleep ${retryDelay / 1000}`, { stdio: "ignore" });
+        } else {
+          throw new Error(`Minion ${target} is not responding after ${maxRetries} attempts: ${lastError.message}`);
+        }
+      }
     }
   }
 
@@ -430,6 +453,17 @@ function deriveKeys(p) {
   if (fileName !== "service.yaml") return null;
 
   const service = parts.at(-2);
+  
+  // Handle three-level hierarchy: stage/subcategory/service/service.yaml
+  // For example: initial-access/databases/default-database/service.yaml
+  if (parts.length >= 4) {
+    const stage = parts.at(-4);        // e.g., "initial-access"
+    const subcategory = parts.at(-3);  // e.g., "databases"
+    const scenario = `${stage}/${subcategory}`;
+    return { scenario, service };
+  }
+  
+  // Fallback for two-level: scenario/service/service.yaml
   const scenario = parts.at(-3) || "uncategorized";
   return { scenario, service };
 }

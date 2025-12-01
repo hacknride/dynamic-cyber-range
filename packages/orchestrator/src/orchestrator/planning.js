@@ -67,16 +67,28 @@ export async function buildPlan(payload) {
 
   // Load the registry from Salt (scenario -> services[])
   const rawRegistry = getSaltModulesAndServices();
+  console.log("[DEBUG] Raw registry:", JSON.stringify(rawRegistry, null, 2));
   const registry = isAlreadyNormalized(rawRegistry) ? rawRegistry : normalizeRegistry(rawRegistry);
+  console.log("[DEBUG] Normalized registry keys:", Object.keys(registry));
 
+  // Determine available OSes from registry
+  const availableOSes = getAvailableOSes(registry);
+  
   // Validate and normalize composition, assign OS to each machine in the payload.
   const composition = buildComposition(options);
-  const osList = assignOSList(amt, composition);
+  const osList = assignOSList(amt, composition, availableOSes);
 
-  // Assign scenarios round-robin if fewer scenarios than machines amount.
-  const assignedScenarios = Array.from({ length: amt }, (_, i) => scenarios[i % scenarios.length]);
+  // Separate scenarios into initial-access and privilege-escalation categories
+  const initialAccessScenarios = scenarios.filter(s => 
+    s.name === 'initial-access' || s.name.startsWith('initial-access/')
+  );
+  const privEscScenarios = scenarios.filter(s => 
+    s.name === 'privilege-escalation' || s.name.startsWith('privilege-escalation/')
+  );
 
-  const usedMap = Object.create(null); //usedMap[scenario][difficulty] = Set of salt states services already chosen.
+  // Track used services per category to ensure uniqueness until exhausted
+  const usedInitialAccess = new Set();
+  const usedPrivEsc = new Set();
 
   // Plan-local hostname set to guarantee uniqueness within this provisioning run
   const planHostnames = new Set();
@@ -84,34 +96,156 @@ export async function buildPlan(payload) {
   const plan = [];
   for (let m = 0; m < amt; m++) {
     const os = osList[m];
-    const { name: scenarioName, vars: userVars = {} } = assignedScenarios[m];
-
-    // Pick a service from the registry that matches the scenario, difficulty, and OS.
-    const picked = pickService({
-      registry,
-      usedMap,
-      scenarioName,
-      os,
-      difficulty,
-      userVars
-    });
-
-    const serviceName = picked.saltState.split("/").pop();
-    // Generate a human-friendly unique hostname (adjective-noun) and ensure uniqueness within this plan
     const hostname = generateUniqueHostname(planHostnames);
+    
+    let saltStates = [];
+    let combinedVars = {};
+    let givens = null;
+    let scenarioName = "combined";
+    let serviceName = "multi-stage";
+
+    // Pick initial access
+    const initialAccess = pickServiceWithUniqueness({
+      registry,
+      requestedScenarios: initialAccessScenarios.length > 0 ? initialAccessScenarios : null,
+      category: 'initial-access',
+      usedSet: usedInitialAccess,
+      os,
+      difficulty
+    });
+    
+    if (initialAccess) {
+      saltStates.push(initialAccess.saltState);
+      const initialServiceName = initialAccess.saltState.split("/").pop();
+      combinedVars[initialServiceName] = initialAccess.vars;
+      givens = initialAccess.givens; // Initial access provides credentials
+      scenarioName = initialAccess.scenario;
+      serviceName = initialServiceName;
+    }
+
+    // Pick privilege escalation
+    const privEsc = pickServiceWithUniqueness({
+      registry,
+      requestedScenarios: privEscScenarios.length > 0 ? privEscScenarios : null,
+      category: 'privilege-escalation',
+      usedSet: usedPrivEsc,
+      os,
+      difficulty
+    });
+    
+    if (privEsc) {
+      saltStates.push(privEsc.saltState);
+      const privEscServiceName = privEsc.saltState.split("/").pop();
+      combinedVars[privEscServiceName] = privEsc.vars;
+      
+      if (initialAccess) {
+        scenarioName = "combined";
+        serviceName = `${serviceName}-${privEscServiceName}`;
+      } else {
+        scenarioName = privEsc.scenario;
+        serviceName = privEscServiceName;
+      }
+    }
 
     plan.push({
       hostname,
       scenario: scenarioName,
       service: serviceName,
-      saltStates: [picked.saltState],
-      vars: { [serviceName]: picked.vars },
+      saltStates,
+      vars: combinedVars,
+      givens,
       os,
       ip: "<awaiting-terraform>"
     });
   }
 
   return plan;
+}
+
+/**
+ * Picks a service with uniqueness tracking until options are exhausted, then allows repeats.
+ * @param {Object} param0 Contains registry, requestedScenarios, category, usedSet, os, difficulty
+ * @returns {Object|null} The selected service or null if none available
+ */
+function pickServiceWithUniqueness({ registry, requestedScenarios, category, usedSet, os, difficulty }) {
+  // Determine which scenarios to search
+  let scenariosToSearch = [];
+  
+  // Extract selected subcategories (e.g., ['databases', 'websites'])
+  const selectedCategories = requestedScenarios && requestedScenarios.length > 0
+    ? requestedScenarios
+        .filter(s => s.categories && s.categories.length > 0)
+        .flatMap(s => s.categories)
+    : [];
+  
+  if (selectedCategories.length > 0) {
+    // User selected specific subcategories - filter to those paths
+    scenariosToSearch = Object.keys(registry).filter(key => {
+      if (!key.startsWith(category + '/')) return false;
+      const subcategory = key.split('/')[1]; // e.g., 'databases' from 'initial-access/databases'
+      return selectedCategories.includes(subcategory);
+    });
+    console.log(`[DEBUG] ${category}: filtering to subcategories [${selectedCategories.join(', ')}] -> found ${scenariosToSearch.length} scenarios`);
+  } else {
+    // No categories selected - use all available in this category
+    scenariosToSearch = Object.keys(registry).filter(key => 
+      key === category || key.startsWith(category + '/')
+    );
+    console.log(`[DEBUG] ${category}: no subcategories selected, using all -> found ${scenariosToSearch.length} scenarios`);
+  }
+  
+  if (scenariosToSearch.length === 0) {
+    console.warn(`[WARN] No scenarios available for category: ${category}`);
+    return null; // No scenarios available in this category
+  }
+  
+  // Collect all services from the specified scenarios
+  let allCandidates = [];
+  for (const scenarioName of scenariosToSearch) {
+    const scenario = registry[scenarioName];
+    if (scenario && scenario.services) {
+      scenario.services.forEach(service => {
+        allCandidates.push({
+          ...service,
+          scenario: scenarioName
+        });
+      });
+    }
+  }
+  
+  if (allCandidates.length === 0) {
+    return null;
+  }
+  
+  // Filter by OS and difficulty (with fallbacks)
+  let pool = allCandidates.filter(s =>
+    (s.difficulty?.toLowerCase?.() === difficulty) &&
+    (!s.os || s.os === os)
+  );
+  
+  if (pool.length === 0) {
+    pool = allCandidates.filter(s => s.difficulty?.toLowerCase?.() === difficulty);
+  }
+  
+  if (pool.length === 0) {
+    pool = allCandidates.filter(s => !s.os || s.os === os);
+  }
+  
+  if (pool.length === 0) {
+    pool = allCandidates;
+  }
+  
+  // Prefer unused services first
+  const unused = pool.filter(s => !usedSet.has(s.saltState));
+  const pickFrom = unused.length > 0 ? unused : pool;
+  
+  // Random selection
+  const chosen = pickFrom[Math.floor(Math.random() * pickFrom.length)];
+  
+  // Mark as used
+  usedSet.add(chosen.saltState);
+  
+  return chosen;
 }
 
 /**
@@ -193,13 +327,31 @@ function buildComposition(options) {
  * When given options.composition in the request payload, ensures to assign OS types accordingly.
  * @param {Integer} amt The value of options.amt-machines (number of machines to create).
  * @param {Object} param1 The composition object with windows, linux, and random counts.
+ * @param {Array<string>} availableOSes List of OSes that have available states (e.g., ["linux", "windows"]).
  * @returns An array of OS types assigned to each machine.
  */
-function assignOSList(amt, { windows, linux, random }) {
+function assignOSList(amt, { windows, linux, random }, availableOSes = ["linux", "windows"]) {
   const out = [];
+  
+  // Validate requested OSes are available
+  if (linux > 0 && !availableOSes.includes("linux")) {
+    throw new Error("Linux machines requested but no Linux states are available");
+  }
+  if (windows > 0 && !availableOSes.includes("windows")) {
+    throw new Error("Windows machines requested but no Windows states are available");
+  }
+  
   for (let i = 0; i < linux; i++) out.push("linux");
   for (let i = 0; i < windows; i++) out.push("windows");
-  for (let i = 0; i < random; i++) out.push(Math.random() < 0.5 ? "linux" : "windows");
+  
+  // For random, only pick from available OSes
+  for (let i = 0; i < random; i++) {
+    if (availableOSes.length === 0) {
+      throw new Error("No operating systems have available states");
+    }
+    const randomOS = availableOSes[Math.floor(Math.random() * availableOSes.length)];
+    out.push(randomOS);
+  }
 
   // Fisher–Yates shuffle
   for (let i = out.length - 1; i > 0; i--) {
@@ -207,6 +359,31 @@ function assignOSList(amt, { windows, linux, random }) {
     [out[i], out[j]] = [out[j], out[i]];
   }
   return out.slice(0, amt);
+}
+
+/**
+ * Determines which operating systems have available Salt states in the registry.
+ * @param {Object} registry The normalized registry object.
+ * @returns {Array<string>} Array of available OS types (e.g., ["linux"], ["windows"], or ["linux", "windows"]).
+ */
+function getAvailableOSes(registry) {
+  const osSet = new Set();
+  
+  for (const scenario of Object.values(registry || {})) {
+    const services = scenario.services || [];
+    for (const service of services) {
+      if (service.os) {
+        osSet.add(service.os);
+      }
+    }
+  }
+  
+  // If no OS is explicitly set on any service, assume all are available
+  if (osSet.size === 0) {
+    return ["linux", "windows"];
+  }
+  
+  return Array.from(osSet);
 }
 
 
@@ -237,6 +414,7 @@ function normalizeRegistry(raw) {
       const os = typeof meta?.os === "string" ? meta.os.toLowerCase() : undefined;
       const difficulty = typeof meta?.difficulty === "string" ? meta.difficulty.toLowerCase() : undefined;
       const vars = (meta?.vars && typeof meta.vars === "object") ? meta.vars : {};
+      const givens = (meta?.givens && typeof meta.givens === "object") ? meta.givens : null;
       const weights = { easy: 1, medium: 1, hard: 1 };
       if (difficulty && ["easy","medium","hard"].includes(difficulty)) weights[difficulty] = 3;
 
@@ -246,6 +424,7 @@ function normalizeRegistry(raw) {
         os,
         difficulty,
         vars,
+        givens,
         weights
       });
     }
