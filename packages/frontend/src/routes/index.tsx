@@ -70,6 +70,7 @@ function Landing() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showCredentials, setShowCredentials] = useState<string | null>(null);
+    const [elapsedTime, setElapsedTime] = useState<number>(0);
 
     useEffect(() => {
         fetchCurrentJob();
@@ -77,6 +78,29 @@ function Landing() {
         const interval = setInterval(fetchCurrentJob, 5000);
         return () => clearInterval(interval);
     }, []);
+
+    // Timer for deployment duration
+    useEffect(() => {
+        if (!currentJob) return;
+
+        const status = currentJob.status?.toLowerCase();
+        const isBuilding = status === 'provisioning' || status === 'building' || status === 'deploying' || status === 'queued';
+
+        if (isBuilding && currentJob.createdAt) {
+            // Update timer every second while building
+            const timer = setInterval(() => {
+                const startTime = new Date(currentJob.createdAt).getTime();
+                const now = Date.now();
+                setElapsedTime(Math.floor((now - startTime) / 1000));
+            }, 1000);
+            return () => clearInterval(timer);
+        } else if (currentJob.createdAt && currentJob.updatedAt) {
+            // Calculate final elapsed time for completed/failed jobs
+            const startTime = new Date(currentJob.createdAt).getTime();
+            const endTime = new Date(currentJob.updatedAt).getTime();
+            setElapsedTime(Math.floor((endTime - startTime) / 1000));
+        }
+    }, [currentJob]);
 
     const fetchCurrentJob = async () => {
         try {
@@ -110,6 +134,30 @@ function Landing() {
             default:
                 return '#2196F3';
         }
+    };
+
+    const formatTime = (seconds: number): string => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}m ${secs}s`;
+    };
+
+    const getDeploymentTimeDisplay = () => {
+        if (!currentJob) return null;
+        
+        const status = currentJob.status?.toLowerCase();
+        const isBuilding = status === 'provisioning' || status === 'building' || status === 'deploying' || status === 'queued';
+        const isFailed = status === 'error' || status === 'failed';
+        const isActive = status === 'active' || status === 'deployed';
+
+        if (isBuilding) {
+            return `Deploying: ${formatTime(elapsedTime)}`;
+        } else if (isActive) {
+            return `Deployed in ${formatTime(elapsedTime)}`;
+        } else if (isFailed) {
+            return `Failed at ${formatTime(elapsedTime)}`;
+        }
+        return null;
     };
 
     return (
@@ -164,6 +212,9 @@ function Landing() {
                                         {currentJob.status.charAt(0).toUpperCase() + currentJob.status.slice(1)}
                                     </strong>
                                 </p>
+                                {getDeploymentTimeDisplay() && (
+                                    <p><strong>{getDeploymentTimeDisplay()}</strong></p>
+                                )}
                                 {currentJob.error && (
                                     <div style={{ color: '#f44336', marginTop: '8px' }}>
                                         <p style={{ margin: 0 }}>
@@ -235,7 +286,10 @@ function Landing() {
                     ) : currentJob && currentJob.machines.length > 0 ? (
                         currentJob.machines.map((machine, idx) => (
                             <div key={idx} className={styles.machineBlock}>
-                                <h4>{machine.hostname} ({machine.ip})</h4>
+                                <h4>
+                                    {machine.hostname}
+                                    {(currentJob.status === 'active' || currentJob.status === 'deployed') && ` (${machine.ip})`}
+                                </h4>
                                 <p>{machine.os}</p>
                                 {machine.givens && (
                                     <>

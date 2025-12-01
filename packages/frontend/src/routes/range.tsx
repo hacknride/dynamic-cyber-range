@@ -27,7 +27,7 @@ function Range() {
   const [windowsCount, setWindowsCount] = useState<string>('0');
   
   // Track range status based on current job
-  const [rangeStatus, setRangeStatus] = useState<'idle' | 'building' | 'deployed' | 'destroying'>('idle');
+  const [rangeStatus, setRangeStatus] = useState<'idle' | 'building' | 'deployed' | 'destroying' | 'failed'>('idle');
   const [_loading, _setLoading] = useState(true);
   const [jobFetchError, setJobFetchError] = useState(false);
   
@@ -95,7 +95,9 @@ function Range() {
         setRangeStatus('destroying');
       } else if (status === 'active' || status === 'deployed') {
         setRangeStatus('deployed');
-      } else if (status === 'destroyed' || status === 'error' || status === 'failed' || status === 'idle') {
+      } else if (status === 'error' || status === 'failed') {
+        setRangeStatus('failed');
+      } else if (status === 'destroyed' || status === 'idle') {
         setRangeStatus('idle');
       }
 
@@ -208,6 +210,9 @@ function Range() {
     );
     if (!confirmed) return;
 
+    // Immediately set status to destroying to disable the button
+    setRangeStatus('destroying');
+
     try {
       const res = await fetch('/api/ranges', {
         method: 'DELETE',
@@ -226,6 +231,8 @@ function Range() {
     } catch (err: any) {
       console.error('Error destroying range:', err);
       alert(`Error destroying range: ${err?.message ?? String(err)}`);
+      // Reset status on error
+      setRangeStatus('deployed');
     }
   };
 
@@ -237,8 +244,8 @@ function Range() {
   };
 
   // Determine if controls should be disabled
-  // Disable when: building, deployed, destroying, OR if we can't fetch job status
-  const isDisabled = rangeStatus === 'building' || rangeStatus === 'deployed' || rangeStatus === 'destroying' || jobFetchError;
+  // Disable when: building, deployed, destroying, failed, OR if we can't fetch job status
+  const isDisabled = rangeStatus === 'building' || rangeStatus === 'deployed' || rangeStatus === 'destroying' || rangeStatus === 'failed' || jobFetchError;
 
   return (
     <div className={styles.container}>
@@ -471,7 +478,7 @@ function Range() {
             >
               Reset
             </button>
-            {rangeStatus === 'deployed' || rangeStatus === 'destroying' ? (
+            {rangeStatus === 'deployed' || rangeStatus === 'destroying' || rangeStatus === 'failed' ? (
               <button 
                 className={styles.destroyButton} 
                 type="button" 
