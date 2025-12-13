@@ -61,18 +61,13 @@ export function startOrchestration(body) {
  * @returns 
  */
 export async function destroyRange({ force = false } = {}) {
+  console.log("[INFO] Destroy range requested" + (force ? " with force." : "."));
   if (currentJob && (currentJob.status === "queued" || currentJob.status === "building")) {
     if (!force) {
       return { ok: false, code: 409, error: "A range is currently running (queued/building)." };
     }
     setJob({ status: "canceled", progress: "Canceled by destroy (force)" });
   }
-
-/**
- * Functional Requirements 20 & 21
- * 20 - The platform shall gracefully shut down each VM in the cyber range
- * 21 - The platform shall deallocate resources for each vulnerable VM shutdown
- */
 
   const planForVars = currentJob?.machines || [];
   try {
@@ -94,12 +89,30 @@ export async function destroyRange({ force = false } = {}) {
 
     return { ok: true, status: "destroyed" };
   } catch (err) {
-    setJob({
-      status: "failed",
-      progress: "Destroy failed!",
-      error: { message: String(err.message || err), stack: String(err.stack || "") }
-    });
-    return { ok: false, code: 500, error: "Destroy failed", details: currentJob.error };
+    // If destroy failed, it might be due to state mismatch - try force cleanup
+    console.error("[ERROR] Terraform destroy failed, attempting state cleanup:", err.message);
+    
+    try {
+      if (currentJob) setJob({ progress: "Attempting state cleanup..." });
+      await terraformDestroy(planForVars, { forceCleanup: true });
+      
+      setJob({
+        status: "destroyed",
+        progress: "Range destroyed (with state cleanup).",
+        machines: [],
+        error: null
+      });
+      
+      return { ok: true, status: "destroyed", warning: "Destroy required state cleanup" };
+    } catch (cleanupErr) {
+      console.error("[ERROR] State cleanup also failed:", cleanupErr.message);
+      setJob({
+        status: "failed",
+        progress: "Destroy failed! Manual cleanup may be required.",
+        error: { message: String(cleanupErr.message || cleanupErr), stack: String(cleanupErr.stack || "") }
+      });
+      return { ok: false, code: 500, error: "Destroy failed", details: currentJob.error };
+    }
   }
 }
 
@@ -128,7 +141,25 @@ async function runProvision() {
     if (!currentJob || currentJob.status !== "queued") return;
 
     console.log("[INFO] Starting orchestration process...");
-    setJob({ status: "building", progress: "Planning machines..." });
+    
+    // Clean up any stale infrastructure from previous failed deployments
+    setJob({ status: "building", progress: "Cleaning up previous deployments..." });
+    try {
+      // First try normal destroy
+      await terraformDestroy([], { silent: true });
+      console.log("[INFO] Cleanup complete.");
+    } catch (cleanupErr) {
+      console.warn("[WARN] Pre-deployment cleanup failed, trying force cleanup:", cleanupErr.message);
+      try {
+        // If normal destroy fails, force cleanup by removing state
+        await terraformDestroy([], { silent: true, forceCleanup: true });
+        console.log("[INFO] Force cleanup complete.");
+      } catch (forceErr) {
+        console.warn("[WARN] Force cleanup also failed (this is normal for first deployment):", forceErr.message);
+      }
+    }
+    
+    setJob({ progress: "Planning machines..." });
     const plan = await buildPlan({ options: currentJob.options, scenarios: currentJob.scenarios });
     setJob({ machines: plan, progress: "Planning complete" });
 

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './range.module.css';
 
 export const Route = createFileRoute('/range')({
@@ -7,7 +7,7 @@ export const Route = createFileRoute('/range')({
 });
 
 type RangePayload = {
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'random' | 'easy' | 'medium' | 'hard';
   machinesPresent: number;
   category: string[];       // For backward compatibility
   initialAccess: string[];  // Selected initial access subcategories
@@ -18,23 +18,17 @@ type RangePayload = {
   segmentation?: boolean;   // not yet in UI; add later if needed
 };
 
-
-/*
- * Function Requirement # 8
- * The user shall customize their cyber-range environment including difficulty,
- * vulnerabilities and number of machines from the dashboard
- */
 function Range() {
   const navigate = useNavigate();
 
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
+  const [difficulty, setDifficulty] = useState<'random' | 'easy' | 'medium' | 'hard'>('random');
   const [machineCount, setMachineCount] = useState<string>('1');
   const [linuxCount, setLinuxCount] = useState<string>('0');
   const [windowsCount, setWindowsCount] = useState<string>('0');
   
   // Track range status based on current job
-  const [rangeStatus, setRangeStatus] = useState<'idle' | 'building' | 'deployed' | 'destroying'>('idle');
-  const [loading, setLoading] = useState(true);
+  const [rangeStatus, setRangeStatus] = useState<'idle' | 'building' | 'deployed' | 'destroying' | 'failed'>('idle');
+  const [_loading, _setLoading] = useState(true);
   const [jobFetchError, setJobFetchError] = useState(false);
   
   // Two-stage attack selection with multi-select
@@ -101,7 +95,9 @@ function Range() {
         setRangeStatus('destroying');
       } else if (status === 'active' || status === 'deployed') {
         setRangeStatus('deployed');
-      } else if (status === 'destroyed' || status === 'error' || status === 'failed' || status === 'idle') {
+      } else if (status === 'error' || status === 'failed') {
+        setRangeStatus('failed');
+      } else if (status === 'destroyed' || status === 'idle') {
         setRangeStatus('idle');
       }
 
@@ -113,7 +109,7 @@ function Range() {
       setJobFetchError(true);
       setRangeStatus('idle');
     } finally {
-      setLoading(false);
+      _setLoading(false);
     }
   };
 
@@ -198,7 +194,7 @@ function Range() {
         throw new Error(msg || `HTTP ${res.status}`);
       }
 
-      const data = await res.json();
+      void await res.json();
       // Status will be updated by polling fetchCurrentJob
       await fetchCurrentJob();
     } catch (err: any) {
@@ -213,6 +209,9 @@ function Range() {
       'Are you sure you want to destroy the range?'
     );
     if (!confirmed) return;
+
+    // Immediately set status to destroying to disable the button
+    setRangeStatus('destroying');
 
     try {
       const res = await fetch('/api/ranges', {
@@ -232,19 +231,21 @@ function Range() {
     } catch (err: any) {
       console.error('Error destroying range:', err);
       alert(`Error destroying range: ${err?.message ?? String(err)}`);
+      // Reset status on error
+      setRangeStatus('deployed');
     }
   };
 
   const handleReset = () => {
-    setDifficulty('easy');
+    setDifficulty('random');
     setMachineCount('1');
     setLinuxCount('0');
     setWindowsCount('0');
   };
 
   // Determine if controls should be disabled
-  // Disable when: building, deployed, destroying, OR if we can't fetch job status
-  const isDisabled = rangeStatus === 'building' || rangeStatus === 'deployed' || rangeStatus === 'destroying' || jobFetchError;
+  // Disable when: building, deployed, destroying, failed, OR if we can't fetch job status
+  const isDisabled = rangeStatus === 'building' || rangeStatus === 'deployed' || rangeStatus === 'destroying' || rangeStatus === 'failed' || jobFetchError;
 
   return (
     <div className={styles.container}>
@@ -294,9 +295,10 @@ function Range() {
               <span>Difficulty</span>
               <select
                 value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
+                onChange={(e) => setDifficulty(e.target.value as 'random' | 'easy' | 'medium' | 'hard')}
                 disabled={isDisabled}
               >
+                <option value="random">Random (No Bias)</option>
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
@@ -477,7 +479,7 @@ function Range() {
             >
               Reset
             </button>
-            {rangeStatus === 'deployed' || rangeStatus === 'destroying' ? (
+            {rangeStatus === 'deployed' || rangeStatus === 'destroying' || rangeStatus === 'failed' ? (
               <button 
                 className={styles.destroyButton} 
                 type="button" 

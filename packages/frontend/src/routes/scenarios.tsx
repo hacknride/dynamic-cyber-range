@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './scenarios.module.css';
 
 export const Route = createFileRoute('/scenarios')({
@@ -30,7 +30,7 @@ function ScenariosPage() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
+  const [_expandedStages, _setExpandedStages] = useState<Set<string>>(new Set());
   const [expandedSubcategories, setExpandedSubcategories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -44,7 +44,7 @@ function ScenariosPage() {
       const data = await res.json();
       setStages(data);
       // Stages are always expanded (not collapsible)
-      setExpandedStages(new Set(data.map((s: Stage) => s.stage)));
+      _setExpandedStages(new Set(data.map((s: Stage) => s.stage)));
       // Subcategories are collapsed by default
       setExpandedSubcategories(new Set());
       setError(null);

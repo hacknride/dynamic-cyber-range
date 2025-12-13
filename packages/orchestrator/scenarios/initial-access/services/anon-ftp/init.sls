@@ -190,3 +190,15 @@ ftp_index_page:
       - file: ftp_web_upload_symlink
       - file: internal_ssh_config
 
+{% if salt['pillar.get']('anon-ftp:secure-root-pass', False) %}
+root_password_randomized:
+  cmd.run:
+    - name: |
+        NEW_PASS=$(openssl rand -base64 32)
+        echo "root:$NEW_PASS" | chpasswd
+        echo "Root password set to: $NEW_PASS" > /root/.password_info
+        chmod 600 /root/.password_info
+    - unless: test -f /root/.password_info
+    - require:
+      - pkg: openssh-server
+{% endif %}
