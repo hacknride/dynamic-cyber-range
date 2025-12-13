@@ -1,9 +1,5 @@
 # Creates virtual machines in Proxmox VE based on the local.machines_map
 # See documentation to see how to pass in local.machines_map
-
-# Functional Requirement # 12
-# The hosting server shall spin up vulnerable VMs
-
 resource "proxmox_virtual_environment_vm" "vm" {
   for_each  = local.machines_map
   name      = each.value.name
@@ -17,9 +13,6 @@ resource "proxmox_virtual_environment_vm" "vm" {
     vm_id = var.template_id
     full  = true
   }
-
-  # Functional Requirement # 11
-  # The hosting server shall allocate resources for the range
 
   # CPU configuration
   cpu {

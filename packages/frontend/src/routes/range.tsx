@@ -18,12 +18,6 @@ type RangePayload = {
   segmentation?: boolean;   // not yet in UI; add later if needed
 };
 
-
-/*
- * Function Requirement # 8
- * The user shall customize their cyber-range environment including difficulty,
- * vulnerabilities and number of machines from the dashboard
- */
 function Range() {
   const navigate = useNavigate();
 
