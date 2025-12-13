@@ -69,6 +69,12 @@ export async function destroyRange({ force = false } = {}) {
     setJob({ status: "canceled", progress: "Canceled by destroy (force)" });
   }
 
+/**
+ * Functional Requirements 20 & 21
+ * 20 - The platform shall gracefully shut down each VM in the cyber range
+ * 21 - The platform shall deallocate resources for each vulnerable VM shutdown
+ */
+
   const planForVars = currentJob?.machines || [];
   try {
     if (currentJob) setJob({ status: "destroying", progress: "Unregistering minions..." });
